@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pytest
-
 from vibewarz_games import GAMES
 from vibewarz_games.curve.game import (
     ARENA_H,
@@ -130,8 +129,10 @@ def test_head_on_collision_kills_both(curve: Curve) -> None:
     state["players"][1]["heading_deg"] = 180.0
     state["trails"][1] = [(state["players"][1]["x"], state["players"][1]["y"])]
     # move others out of the way
-    state["players"][2]["x"] = 100.0; state["players"][2]["y"] = 100.0
-    state["players"][3]["x"] = 900.0; state["players"][3]["y"] = 900.0
+    state["players"][2]["x"] = 100.0
+    state["players"][2]["y"] = 100.0
+    state["players"][3]["x"] = 900.0
+    state["players"][3]["y"] = 900.0
     state["trails"][2] = [(100.0, 100.0)]
     state["trails"][3] = [(900.0, 900.0)]
     res = curve.step(state, {s: {"turn": "STRAIGHT"} for s in range(4)})

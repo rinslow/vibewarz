@@ -408,7 +408,8 @@ def _first_to_act_preflop(state: dict) -> int | None:
     """
     in_tourney = [p["seat"] for p in state["players"] if p["in_tournament"]]
     button = state["button"]
-    eligible = lambda p: p["in_hand"] and not p["all_in"]
+    def eligible(p):
+        return p["in_hand"] and not p["all_in"]
     if len(in_tourney) == 2:
         if eligible(_seat_lookup(state, button)):
             return button

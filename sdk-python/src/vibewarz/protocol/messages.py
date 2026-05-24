@@ -180,6 +180,12 @@ ErrorCode = Literal[
     "illegal_move",
     "stale_action",
     "rate_limited",
+    # too_many_connections: bot's api-key exceeded the concurrent WS cap;
+    # fatal=True, the SDK should stop reconnecting and back off.
+    "too_many_connections",
+    # too_many_matches: owner has too many in-flight matches; the offending
+    # `queue` message was dropped, fatal=False; client may retry later.
+    "too_many_matches",
     "match_aborted",
     "internal_error",
     "bad_message",

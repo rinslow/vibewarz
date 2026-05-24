@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pytest
-
 from vibewarz_games import GAMES
 from vibewarz_games.blast.board import BOARD_H, BOARD_W
 from vibewarz_games.blast.game import (

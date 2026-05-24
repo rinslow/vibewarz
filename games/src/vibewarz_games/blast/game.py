@@ -356,9 +356,8 @@ class Blast(Game):
                     p["alive"]
                     and p["x"] == pu["x"]
                     and p["y"] == pu["y"]
-                ):
-                    if taker is None or p["seat"] < taker["seat"]:
-                        taker = p
+                ) and (taker is None or p["seat"] < taker["seat"]):
+                    taker = p
             if taker is None:
                 remaining_powerups.append(pu)
                 continue

@@ -13,6 +13,10 @@ jobs:
       - uses: astral-sh/setup-uv@v3
         with:
           enable-cache: true
+          # Libraries don't commit uv.lock (see .gitignore). Key the
+          # action's cache off pyproject.toml instead, otherwise the
+          # default **/uv.lock glob matches nothing and the step fails.
+          cache-dependency-glob: "**/pyproject.toml"
       - name: Set up Python
         run: uv python install 3.11
       - name: Sync workspace

@@ -79,9 +79,7 @@ def _segments_intersect(
         return True
     if d3 == 0 and on_segment(p1, p2, p3):
         return True
-    if d4 == 0 and on_segment(p1, p2, p4):
-        return True
-    return False
+    return bool(d4 == 0 and on_segment(p1, p2, p4))
 
 
 def _spawn_rng(seed: int, tick: int) -> random.Random:
@@ -233,10 +231,7 @@ class Curve(Game):
             for other_seat, trail in enumerate(state["trails"]):
                 if not trail:
                     continue
-                if other_seat == seat:
-                    relevant = trail[: -SELF_CLIP_IMMUNE_SEGMENTS]
-                else:
-                    relevant = trail
+                relevant = trail[:-SELF_CLIP_IMMUNE_SEGMENTS] if other_seat == seat else trail
                 for i in range(len(relevant) - 1):
                     if _segments_intersect(p0, p1, relevant[i], relevant[i + 1]):
                         dead_this_tick.add(seat)

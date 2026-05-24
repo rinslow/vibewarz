@@ -75,14 +75,13 @@ def play(
         bot.seat = seat
         bot.match_id = "local"
         bot.players = None
-        if not getattr(bot, "game", "") or bot.game != game_id:
-            # Allow bots that don't set `game` to play here; warn on mismatch.
-            if getattr(bot, "game", "") and bot.game != game_id:
-                print(
-                    f"warning: {path.name} declares game={bot.game!r}, "
-                    f"running it under {game_id!r} anyway",
-                    file=sys.stderr,
-                )
+        # Allow bots that don't set `game` to play here; warn on mismatch.
+        if getattr(bot, "game", "") and bot.game != game_id:
+            print(
+                f"warning: {path.name} declares game={bot.game!r}, "
+                f"running it under {game_id!r} anyway",
+                file=sys.stderr,
+            )
         bots.append(bot)
 
     seed = seed if seed is not None else random.randrange(2**31)
@@ -109,10 +108,7 @@ def play(
                     print(f"seat {seat} raised in act(): {e!r}", file=sys.stderr)
                 actions[seat] = game.default_action(state, seat)
                 continue
-            if isinstance(out, tuple):
-                action = out[0]
-            else:
-                action = out
+            action = out[0] if isinstance(out, tuple) else out
             if not isinstance(action, dict) or not game.is_legal(state, seat, action):
                 if verbose:
                     print(
