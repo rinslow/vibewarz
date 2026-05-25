@@ -11,6 +11,7 @@ Usage:
 from __future__ import annotations
 
 import asyncio
+import logging
 import os
 import sys
 
@@ -29,6 +30,8 @@ from .protocol import (
     TickRequestS2C,
     TickResultS2C,
 )
+
+log = logging.getLogger(__name__)
 
 
 async def _play_one_match(client: Client, bot: Bot, mode: str, bot_label: str | None) -> GameEndS2C:
@@ -70,9 +73,15 @@ async def _play_one_match(client: Client, bot: Bot, mode: str, bot_label: str | 
         if isinstance(msg, GameEndS2C):
             bot.on_end(msg.placement, msg.reason)
             return msg
-        if isinstance(msg, ErrorS2C) and msg.fatal:
-            raise RuntimeError(f"server error: {msg.code}: {msg.message}")
-        # non-fatal ErrorS2C: keep going
+        if isinstance(msg, ErrorS2C):
+            if msg.fatal:
+                raise RuntimeError(f"server error: {msg.code}: {msg.message}")
+            # Non-fatal errors are surfaced as WARNING so silent server-side
+            # drops (e.g. a rate_limited QueueC2S) don't leave the bot
+            # hanging in client.messages() with no diagnostic — see
+            # vibe-warz-platform issue #69.
+            log.warning("non-fatal server error: %s %s", msg.code, msg.message)
+            continue
 
     raise RuntimeError("ws closed before game_end")
 
