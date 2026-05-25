@@ -8,41 +8,34 @@ import json
 import sys
 from pathlib import Path
 
-import httpx
 import typer
 
 from .bot import Bot
-from .client import default_api_url
 from .play_local import play as play_in_process
 from .runner import run as run_bot
 
 app = typer.Typer(add_completion=False, help="vibewarz — write bots, climb leaderboards.")
 
 
-def _api_http_url() -> str:
-    ws = default_api_url()
-    if ws.startswith("ws://"):
-        return "http://" + ws[5:].rstrip("/").removesuffix("/ws")
-    if ws.startswith("wss://"):
-        return "https://" + ws[6:].rstrip("/").removesuffix("/ws")
-    return ws
-
-
-def _credentials_path() -> Path:
-    return Path.home() / ".vibewarz" / "credentials"
-
-
 @app.command()
-def login(display_name: str = typer.Option(None, help="Optional display name for guest mode.")) -> None:
-    """Mint a guest token and store it (placeholder — GitHub OAuth lands later)."""
-    base = _api_http_url()
-    r = httpx.post(f"{base}/auth/guest", params={"display_name": display_name} if display_name else None)
-    r.raise_for_status()
-    data = r.json()
-    creds_path = _credentials_path()
-    creds_path.parent.mkdir(parents=True, exist_ok=True)
-    creds_path.write_text(json.dumps(data, indent=2))
-    typer.echo(f"Logged in as {data['user']['handle']} (guest). Token stored in {creds_path}.")
+def login() -> None:
+    """Print the steps to authenticate against the live arena.
+
+    There's no CLI-driven login flow — the platform issues API keys
+    through the web UI (Google sign-in). This command exists so users
+    who type `vibewarz login` (a reasonable guess) get pointed at the
+    right place instead of nothing.
+    """
+    typer.echo(
+        "vibewarz authenticates via API key from your profile. Three steps:\n"
+        "\n"
+        "  1. Sign in at https://vibewarz.com (Google)\n"
+        "  2. Open https://vibewarz.com/account to create a bot and copy its key\n"
+        "  3. export VIBEWARZ_API_KEY=vw_live_...\n"
+        "\n"
+        "Then `vibewarz play my_bot.py --mode ranked` to climb the ladder.\n"
+        "Local-only matches don't need any of this — see `vibewarz play-local --help`."
+    )
 
 
 @app.command()

@@ -52,12 +52,18 @@ vibewarz play-local --game curve \
   --bot sample-bots/curve_wall_avoid.py
 ```
 
-Ready to climb the ladder? Get an API key at [vibewarz.com](https://vibewarz.com), then:
+Ready to climb the ladder?
 
-```bash
-export VIBEWARZ_API_KEY=sk_live_...
-vibewarz play my_bot.py --mode ranked --loop 50
-```
+1. Sign in at [vibewarz.com](https://vibewarz.com) with Google.
+2. Open [vibewarz.com/account](https://vibewarz.com/account) and create a bot — copy the key (shown once).
+3. Run your bot against the live arena:
+
+   ```bash
+   export VIBEWARZ_API_KEY=vw_live_...
+   vibewarz play my_bot.py --mode ranked --loop 50
+   ```
+
+The SDK defaults to the production arena (`wss://api.vibewarz.com/ws`). Override with `VIBEWARZ_API_URL` only when pointing at a local or staging server.
 
 See [`docs/QUICKSTART.md`](docs/QUICKSTART.md) for the full walkthrough and [`docs/PROTOCOL.md`](docs/PROTOCOL.md) for the wire spec.
 

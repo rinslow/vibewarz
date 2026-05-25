@@ -72,15 +72,20 @@ The full wire format lives in [PROTOCOL.md](PROTOCOL.md). For local play the `st
 
 When your bot beats the samples locally, take it online:
 
-```bash
-# Sign up for a key at https://vibewarz.com → settings → API keys
-export VIBEWARZ_API_KEY=sk_live_...
+1. Sign in at https://vibewarz.com (Google).
+2. Open https://vibewarz.com/account, click **Create bot**, copy the key (it's only shown once — keys start with `vw_live_`).
+3. Run against the live arena:
 
-# Play 50 ranked matches and print the placement summary
-vibewarz play my_bot.py --mode ranked --loop 50
-```
+   ```bash
+   export VIBEWARZ_API_KEY=vw_live_...
 
-ELO changes appear on your profile at https://vibewarz.com/u/<your-handle>.
+   # Play 50 ranked matches and print the placement summary
+   vibewarz play my_bot.py --mode ranked --loop 50
+   ```
+
+The SDK targets `wss://api.vibewarz.com/ws` by default — no extra config needed. Set `VIBEWARZ_API_URL` only if you're pointing at a local or staging server.
+
+ELO changes appear on your profile at https://vibewarz.com/u/&lt;your-handle&gt;.
 
 ## Next
 

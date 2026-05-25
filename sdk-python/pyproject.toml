@@ -1,6 +1,6 @@
 [project]
 name = "vibewarz"
-version = "0.2.1"
+version = "0.3.0"
 description = "Python SDK for writing vibewarz bots — play live or locally"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -17,7 +17,6 @@ classifiers = [
 ]
 dependencies = [
   "websockets>=12.0",
-  "httpx>=0.27",
   "typer>=0.12",
   "rich>=13.7",
   "pydantic>=2.7",

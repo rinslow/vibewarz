@@ -14,6 +14,8 @@ import asyncio
 import os
 import sys
 
+import websockets.exceptions
+
 from .bot import Bot
 from .client import Client, default_api_url
 from .protocol import (
@@ -103,4 +105,19 @@ def run(
                     file=sys.stderr,
                 )
 
-    asyncio.run(_go())
+    try:
+        asyncio.run(_go())
+    except (
+        ConnectionRefusedError,
+        OSError,
+        websockets.exceptions.InvalidHandshake,
+        websockets.exceptions.InvalidURI,
+    ) as e:
+        # Wrap raw network errors with the env-var hint. The default URL
+        # is prod, so the most likely cause of failure here is a typo'd
+        # override or someone running an old client against a stopped
+        # dev server.
+        raise SystemExit(
+            f"Couldn't reach vibewarz at {url}: {e}\n"
+            "Set VIBEWARZ_API_URL to override (default is the prod arena)."
+        ) from e

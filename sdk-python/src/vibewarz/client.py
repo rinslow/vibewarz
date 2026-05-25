@@ -18,6 +18,9 @@ from typing import Any
 import websockets
 from websockets.asyncio.client import ClientConnection
 
+# Use the package-level __version__ (sourced from importlib.metadata in
+# __init__.py) so the wire tag and `vibewarz.__version__` can never drift.
+from . import __version__
 from .protocol import (
     ApiKeyAuth,
     AuthPayload,
@@ -69,7 +72,7 @@ class Client:
         assert self._ws is not None
         hello = HelloC2S(
             id=uuid.uuid4().hex[:8],
-            sdk_version="0.1.0",
+            sdk_version=f"python-{__version__}",
             auth=self._build_auth(),
         )
         await self._ws.send(encode_client(hello))
@@ -103,8 +106,14 @@ class Client:
         )
 
 
+# Public production WS endpoint. Override with VIBEWARZ_API_URL when
+# pointing at a local dev server or a staging environment, e.g.
+#   export VIBEWARZ_API_URL=ws://localhost:10000/ws
+DEFAULT_API_URL = "wss://api.vibewarz.com/ws"
+
+
 def default_api_url() -> str:
-    return os.environ.get("VIBEWARZ_API_URL", "ws://localhost:10000/ws")
+    return os.environ.get("VIBEWARZ_API_URL", DEFAULT_API_URL)
 
 
 def api_http_url(ws_url: str | None = None) -> str:

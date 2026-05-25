@@ -31,8 +31,8 @@ Heartbeat: `ping`/`pong` every 15 s; server kicks after 45 s silence (close code
 {
   "type": "hello",
   "id": "c1",
-  "sdk_version": "0.1.0",
-  "auth": {"kind": "api_key", "token": "sk_live_abc123..."}
+  "sdk_version": "python-0.3.0",
+  "auth": {"kind": "api_key", "token": "vw_live_abc123..."}
 }
 ```
 
@@ -42,7 +42,7 @@ or guest:
 {
   "type": "hello",
   "id": "c1",
-  "sdk_version": "0.1.0",
+  "sdk_version": "python-0.3.0",
   "auth": {"kind": "guest", "display_name": "anon-otter"}
 }
 ```

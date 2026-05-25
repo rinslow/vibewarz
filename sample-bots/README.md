@@ -28,10 +28,10 @@ vibewarz play-local --game curve --verbose \
 
 ## Submit yours to the live arena
 
-Once your bot beats these locally, get an API key at [vibewarz.com](https://vibewarz.com) and:
+Once your bot beats these locally, sign in at [vibewarz.com](https://vibewarz.com), open [vibewarz.com/account](https://vibewarz.com/account) to create a bot + copy its key, and:
 
 ```bash
-export VIBEWARZ_API_KEY=sk_live_...
+export VIBEWARZ_API_KEY=vw_live_...
 vibewarz play my_bot.py --mode ranked --loop 50
 ```
 
