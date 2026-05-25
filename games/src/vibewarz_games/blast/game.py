@@ -104,10 +104,8 @@ class Blast(Game):
         max_ticks=MAX_TICKS,
         match_wait_ms=3_000,
         description=(
-            "2-4 player grid arena. Drop bombs, blow up soft blocks, grab "
-            "powerups (bomb count, blast range, speed), and out-position "
-            "your opponents. Last bot standing wins. The arena starts "
-            "closing in at tick 300."
+            "Plant bombs, dodge blasts, out-position your opponents. "
+            "Last one standing wins."
         ),
     )
 

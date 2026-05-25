@@ -47,7 +47,7 @@ BLIND_SCHEDULE: Final = (
 class Poker(Game):
     meta = GameMeta(
         id="poker",
-        display_name="No-Limit Hold'em (Single Table)",
+        display_name="No-Limit Hold'em",
         min_players=2,
         max_players=6,
         tick_deadline_ms=15_000,    # 15s per decision
@@ -55,8 +55,8 @@ class Poker(Game):
         max_ticks=5_000,            # safety bound; tournaments end on chip count
         match_wait_ms=3_000,        # let 6-max tables actually fill up
         description=(
-            "Single-table NLH tournament. 1000-chip starting stacks, escalating "
-            "blinds. Last stack standing wins; placement is the bust-out order."
+            "Poker tournament. Read the table, bluff, bust everyone else. "
+            "Last stack standing wins."
         ),
     )
 

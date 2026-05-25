@@ -98,9 +98,8 @@ class Curve(Game):
         tick_interval_ms=50,
         max_ticks=1500,
         description=(
-            "4-player free-for-all. Each head moves at constant speed and leaves "
-            "a trail. Crash into any trail or the arena wall — you're out. "
-            "Last alive wins."
+            "Free-for-all snake duel. Crash into a trail or the wall and "
+            "you're out. Last alive wins."
         ),
     )
 
