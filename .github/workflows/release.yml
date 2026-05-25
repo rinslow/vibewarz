@@ -21,13 +21,17 @@ jobs:
       - name: Build vibewarz
         working-directory: sdk-python
         run: uv build
+      # --check-url makes publish idempotent: uv HEADs the index for each
+      # built artifact and skips files PyPI already serves, instead of
+      # erroring on duplicate. Lets us tag releases that only bump one of
+      # the two packages without having to also bump the other.
       - name: Publish vibewarz-games to PyPI
         env:
           UV_PUBLISH_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
         working-directory: games
-        run: uv publish
+        run: uv publish --check-url https://pypi.org/simple/
       - name: Publish vibewarz to PyPI
         env:
           UV_PUBLISH_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
         working-directory: sdk-python
-        run: uv publish
+        run: uv publish --check-url https://pypi.org/simple/
