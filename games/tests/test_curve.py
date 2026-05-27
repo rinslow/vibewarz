@@ -230,6 +230,52 @@ def test_view_for_never_leaks_seed(curve: Curve) -> None:
         assert "seed" not in curve.view_for(state, seat)
 
 
+def test_snapshot_view_for_carries_full_trails(curve: Curve) -> None:
+    state = curve.initial_state(seed=42, num_players=4)
+    for seat in range(4):
+        view = curve.snapshot_view_for(state, seat)
+        assert "seed" not in view
+        assert view["trails"] == state["trails"]
+        assert view["trail_delta"] == state["trail_delta"]
+
+
+def test_delta_view_for_omits_trails_keeps_trail_delta(curve: Curve) -> None:
+    """The whole point of the framework: per-tick view ships the
+    constant-size `trail_delta`, never the cumulative `trails`."""
+    state = curve.initial_state(seed=42, num_players=4)
+    # Step a few ticks so trails grows past length 1
+    for _ in range(5):
+        state = curve.step(state, _all_straight()).state
+    assert all(len(t) > 1 for t in state["trails"])  # cumulative growth happened
+    for seat in range(4):
+        view = curve.delta_view_for(state, seat)
+        assert "seed" not in view
+        assert "trails" not in view
+        assert view["trail_delta"] == state["trail_delta"]
+
+
+def test_apply_deltas_reconstructs_authoritative_trails(curve: Curve) -> None:
+    """SDK accumulator semantics: client starts from `snapshot_view_for`
+    at game_start and appends each tick's `trail_delta` element-wise onto
+    its cumulative `trails`. After N ticks the client's reconstructed
+    trails must equal the authoritative engine state's trails."""
+    state = curve.initial_state(seed=42, num_players=4)
+    client_view: dict = curve.snapshot_view_for(state, seat=0)
+    # Defensive copy so we mutate the client view, not the engine state.
+    client_trails: list[list[tuple[float, float]]] = [
+        list(t) for t in client_view["trails"]
+    ]
+
+    for _ in range(40):
+        state = curve.step(state, _all_straight()).state
+        delta = curve.delta_view_for(state, seat=0)
+        # SDK accumulator: append per-player trail_delta into cumulative trails.
+        for i, segs in enumerate(delta["trail_delta"]):
+            client_trails[i].extend(segs)
+
+    assert client_trails == [list(t) for t in state["trails"]]
+
+
 def test_powerup_spawns_at_interval(curve: Curve) -> None:
     state = curve.initial_state(seed=7, num_players=4)
     actions = _all_straight()

@@ -147,6 +147,26 @@ class Curve(Game):
             "next_powerup_id": 0,
         }
 
+    # ── wire views ─────────────────────────────────────────────────────────
+
+    def delta_view_for(self, state: dict, seat: int) -> dict:
+        """Per-tick view: drop the cumulative `trails` array and ship only
+        `trail_delta` (this tick's new segments per player).
+
+        `trails` grows by one (x, y) per live player per tick; emitting it
+        every tick is O(N²) total work over an N-tick match and pushed
+        the server past the tick budget once humans started surviving past
+        ~tick 200. The SDK accumulator reconstructs `trails` by appending
+        each tick's `trail_delta` onto the cumulative state initialised
+        from `GameStartS2C` (`snapshot_view_for` below). See
+        `_core/base.py:Game.delta_view_for` for the SDK contract.
+        """
+        return {
+            k: v
+            for k, v in state.items()
+            if k != "seed" and k != "trails"
+        }
+
     def alive_seats(self, state: dict) -> list[int]:
         return [p["seat"] for p in state["players"] if p["alive"]]
 

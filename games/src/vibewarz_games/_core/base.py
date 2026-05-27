@@ -100,8 +100,46 @@ class Game(ABC):
         Why `seed` is server-only: the RNG is deterministic, so any client
         that learns the seed can locally reproduce the engine and predict
         future events (e.g. opponents' hole cards in poker).
+
+        New consumers should prefer `snapshot_view_for` / `delta_view_for`
+        below; `view_for` remains as the legacy default and as the seam
+        that both default implementations call into so existing overrides
+        keep working without per-subclass changes.
         """
         return {k: v for k, v in state.items() if k != "seed"}
+
+    def snapshot_view_for(self, state: dict, seat: int) -> dict:
+        """Full per-seat state, sent in `GameStartS2C` and `GameEndS2C`.
+
+        Defaults to `view_for` so existing engines (and any subclass
+        that already overrides `view_for` for hidden-info redaction)
+        keep working unchanged. Override only if a game needs *different*
+        redaction at match boundaries than during ticks (rare).
+        """
+        return self.view_for(state, seat)
+
+    def delta_view_for(self, state: dict, seat: int) -> dict:
+        """Per-tick view, sent in `TickRequestS2C` and `TickResultS2C`.
+
+        For games with append-only state (e.g. Curve's growing trails),
+        override this to omit cumulative fields and emit only the
+        tick-scoped additions. Client SDKs maintain a cumulative
+        per-session state initialised from the `GameStartS2C` snapshot
+        and apply each tick's delta on top — bot authors continue to
+        see the full reconstructed state via `bot.act(state)`.
+
+        Convention for clients: any key ending in `_delta` whose value
+        is a list parallel to a cumulative `<base>` list of the same
+        outer length is appended element-wise onto `<base>` by the SDK
+        accumulator. Engines that emit `foo_delta` do not need to also
+        emit `foo` in the delta — the accumulator preserves it.
+
+        Default falls back to `snapshot_view_for`: engines that don't
+        opt in keep emitting the full state every tick. The framework
+        is opt-in per game; there is no behaviour change for engines
+        that don't override this method.
+        """
+        return self.snapshot_view_for(state, seat)
 
     def render_ascii(self, state: dict) -> str:
         return ""

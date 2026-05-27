@@ -30,6 +30,7 @@ from .protocol import (
     TickRequestS2C,
     TickResultS2C,
 )
+from .state_accumulator import StateAccumulator
 
 log = logging.getLogger(__name__)
 
@@ -40,6 +41,11 @@ async def _play_one_match(client: Client, bot: Bot, mode: str, bot_label: str | 
     bot.seat = -1
     bot.match_id = None
     bot.players = None
+    # Server sends a full snapshot in GameStartS2C and per-tick deltas in
+    # TickRequest/Result (see vibewarz_games._core.base.Game.delta_view_for).
+    # The accumulator reconstructs the live state so bot.act() keeps
+    # receiving a full state — no per-bot delta handling required.
+    accumulator = StateAccumulator()
 
     async for msg in client.messages():
         if isinstance(msg, QueuedS2C):
@@ -50,10 +56,12 @@ async def _play_one_match(client: Client, bot: Bot, mode: str, bot_label: str | 
             bot.players = msg.players
             continue
         if isinstance(msg, GameStartS2C):
-            bot.on_start(msg.state)
+            state = accumulator.on_snapshot(msg.state)
+            bot.on_start(state)
             continue
         if isinstance(msg, TickRequestS2C):
-            action_or_pair = bot.act(msg.state)
+            state = accumulator.on_delta(msg.state)
+            action_or_pair = bot.act(state)
             if isinstance(action_or_pair, tuple):
                 action, reasoning = action_or_pair
             else:
@@ -68,9 +76,18 @@ async def _play_one_match(client: Client, bot: Bot, mode: str, bot_label: str | 
                 )
             )
             continue
-        if isinstance(msg, TickResultS2C | RatingUpdateS2C):
+        if isinstance(msg, TickResultS2C):
+            # Keep the accumulator in sync; bot doesn't observe tick_result
+            # directly — its next act() will see the post-step state.
+            accumulator.on_delta(msg.state)
+            continue
+        if isinstance(msg, RatingUpdateS2C):
             continue
         if isinstance(msg, GameEndS2C):
+            # final_state is a full snapshot (per delta_view_for contract);
+            # treat it as such so a hypothetical post-end consumer reads a
+            # clean cumulative state.
+            accumulator.on_snapshot(msg.final_state)
             bot.on_end(msg.placement, msg.reason)
             return msg
         if isinstance(msg, ErrorS2C):

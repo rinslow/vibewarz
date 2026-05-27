@@ -119,11 +119,19 @@ class MatchFoundS2C(BaseModel):
 
 
 class GameStartS2C(BaseModel):
-    # Note: the match seed is intentionally NOT included on the wire. It is
-    # server-only — leaking it would let a client locally re-run the
-    # deterministic engine and reveal hidden information (e.g. opponents'
-    # hole cards in poker). Replays record the seed server-side and are
-    # fetched post-match via the replay API.
+    """Match has started — the `state` field carries the full initial
+    per-seat snapshot (engine's `snapshot_view_for`). Subsequent
+    `TickRequestS2C` / `TickResultS2C` carry per-tick *deltas* against
+    this snapshot; client SDKs reconstruct the cumulative state via
+    `vibewarz.state_accumulator.StateAccumulator`. See
+    `vibewarz_games._core.base.Game.delta_view_for` for the contract.
+
+    Note: the match seed is intentionally NOT included on the wire. It
+    is server-only — leaking it would let a client locally re-run the
+    deterministic engine and reveal hidden information (e.g. opponents'
+    hole cards in poker). Replays record the seed server-side and are
+    fetched post-match via the replay API.
+    """
     type: Literal["game_start"] = "game_start"
     ts: int
     match_id: str
@@ -131,7 +139,17 @@ class GameStartS2C(BaseModel):
 
 
 class TickRequestS2C(BaseModel):
-    """Server prompts the bot for an action this tick."""
+    """Server prompts the bot for an action this tick.
+
+    `state` is a *delta* (engine's `delta_view_for`) — per-game
+    append-only fields like Curve's `trail_delta` are appended onto
+    the cumulative state the client has been maintaining since
+    `GameStartS2C`. Most fields are full-replace. Servers may emit the
+    same view twice (pre-step on `tick_request`, post-step on
+    `tick_result` when the state didn't advance during action
+    collection); client SDKs dedup by `state["tick"]` so the
+    accumulator never double-applies an append.
+    """
 
     type: Literal["tick_request"] = "tick_request"
     ts: int
@@ -142,8 +160,13 @@ class TickRequestS2C(BaseModel):
 
 
 class TickResultS2C(BaseModel):
-    """Server applied actions; here's the new state. `actions[seat]=null`
-    indicates the bot missed the deadline and `default_action` was substituted.
+    """Server applied actions; here's the new state.
+
+    `state` follows the same delta contract as `TickRequestS2C` —
+    see that docstring and `vibewarz_games._core.base.Game.delta_view_for`.
+
+    `actions[seat]=null` indicates the bot missed the deadline and
+    `default_action` was substituted.
     """
 
     type: Literal["tick_result"] = "tick_result"
@@ -156,6 +179,10 @@ class TickResultS2C(BaseModel):
 
 
 class GameEndS2C(BaseModel):
+    """Match concluded. `final_state` is a full snapshot (engine's
+    `snapshot_view_for`), not a delta — a post-end consumer can read
+    it without any prior context."""
+
     type: Literal["game_end"] = "game_end"
     ts: int
     match_id: str
