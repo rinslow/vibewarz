@@ -24,3 +24,11 @@ htmlcov/
 # uv
 uv.lock
 pypi.token
+
+# JS workspace
+node_modules/
+.pnpm-store/
+*.tsbuildinfo
+
+# Local match replays from `vibewarz play-local` (runtime artifacts).
+data/

@@ -1,0 +1,18 @@
+{
+  "name": "vibewarz-oss",
+  "private": true,
+  "version": "0.0.0",
+  "description": "vibewarz OSS — JS workspace root (@vibewarz/game-ui package + standalone Vite viewer app)",
+  "packageManager": "pnpm@10.30.2",
+  "scripts": {
+    "build": "pnpm -r run build",
+    "build:viewer": "pnpm -F @vibewarz/game-ui build && pnpm -F viewer build",
+    "lint": "pnpm -r --if-present run lint",
+    "typecheck": "pnpm -r --if-present run typecheck",
+    "changeset": "changeset",
+    "release": "pnpm -F @vibewarz/game-ui build && changeset publish"
+  },
+  "devDependencies": {
+    "@changesets/cli": "^2.27.9"
+  }
+}

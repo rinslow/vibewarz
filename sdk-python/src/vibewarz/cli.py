@@ -14,6 +14,7 @@ import typer
 
 from .bot import Bot
 from .client import Client, default_api_url
+from .play_local import DEFAULT_REPLAY_DIR
 from .play_local import play as play_in_process
 from .runner import run as run_bot
 
@@ -78,6 +79,19 @@ def play_local(
     seed: int = typer.Option(None, help="Random seed for reproducible matches."),
     max_ticks: int = typer.Option(None, help="Override the game's default max-ticks limit."),
     verbose: bool = typer.Option(False, help="Print eliminations + illegal-action substitutions."),
+    record: bool = typer.Option(
+        True,
+        "--record/--no-record",
+        help=(
+            "Write a JSONL replay to ./data/replays/{match_id}.jsonl. On by "
+            "default — pass --no-record for throwaway runs (e.g. benchmark loops)."
+        ),
+    ),
+    replay_dir: Path = typer.Option(
+        None,
+        "--replay-dir",
+        help="Override the replay output directory. Defaults to ./data/replays.",
+    ),
 ) -> None:
     """Run an in-process match between N bot scripts. No server, no auth."""
     for p in bot:
@@ -91,6 +105,8 @@ def play_local(
             seed=seed,
             max_ticks=max_ticks,
             verbose=verbose,
+            record=record,
+            replay_dir=replay_dir,
         )
     except RuntimeError as e:
         typer.echo(str(e), err=True)
@@ -98,11 +114,22 @@ def play_local(
     typer.echo(
         f"{result.match_id}: placement={result.placement} reason={result.reason} ticks={result.ticks}"
     )
+    if result.replay_path is not None:
+        typer.echo(f"replay: {result.replay_path}")
+        typer.echo(f"watch:  vibewarz replay {result.match_id} --watch")
 
 
 @app.command()
 def replay(
     match_id: str,
+    watch: bool = typer.Option(
+        False,
+        "--watch",
+        help=(
+            "Boot the bundled React viewer and open it in a browser. The URL "
+            "is also printed to stdout so headless/SSH sessions can use it."
+        ),
+    ),
     api_url: str = typer.Option(
         None,
         "--api-url",
@@ -115,27 +142,59 @@ def replay(
         envvar="VIBEWARZ_API_KEY",
         help="API key for authenticated fetch. Replays are currently public; this is forward-compat.",
     ),
+    path: Path = typer.Option(
+        None,
+        "--path",
+        help="Explicit JSONL file path. Overrides the default ./data/replays lookup.",
+    ),
     pretty: bool = typer.Option(
         None,
         "--pretty/--compact",
         help=(
             "Pretty-print (indented) vs compact (one JSON object per line). "
             "Defaults: --pretty for local file reads (open-and-skim), "
-            "--compact for remote fetches (jq-friendly)."
+            "--compact for remote fetches (jq-friendly). Ignored with --watch."
         ),
     ),
 ) -> None:
-    """Print a replay's tick log to stdout.
+    """Print a replay's tick log to stdout, or open it in the React viewer.
+
+    With --watch: boots a local HTTP server on 127.0.0.1 (random port),
+    opens the bundled @vibewarz/replay-viewer SPA, and serves the JSONL as
+    the replay envelope. Press Ctrl-C to stop. Requires the viewer assets
+    that ship with the wheel.
 
     With --api-url (or VIBEWARZ_API_URL): fetches over HTTP from the live
     API. Default output is compact, one JSON object per line — pipe to jq:
 
       vibewarz replay m_abc1234 | jq 'select(.type=="game_end")'
 
-    Without --api-url: walks ./data/replays for a JSONL file (the local
+    Without flags: walks ./data/replays for a JSONL file (the local
     backend writes there during dev). Default output is indented for
     direct reading; pass --compact if you're piping somewhere.
     """
+    if watch:
+        if api_url:
+            typer.echo(
+                "--watch serves a local JSONL file; --api-url is ignored. "
+                "Drop --api-url to use the bundled viewer with a local replay.",
+                err=True,
+            )
+        jsonl = _locate_local_jsonl(match_id, path)
+        if jsonl is None:
+            raise typer.Exit(1)
+        # Imported lazily so users on a stripped-down install (no viewer_dist
+        # because they vendored the SDK) only hit the missing-asset error
+        # when they actually try to use --watch.
+        from .replay_server import serve as _serve
+
+        try:
+            _serve(jsonl, match_id)
+        except RuntimeError as e:
+            typer.echo(str(e), err=True)
+            raise typer.Exit(1) from e
+        return
+
     if api_url:
         envelope = asyncio.run(_fetch_remote_replay(match_id, api_url, api_key))
         events = envelope.get("events", [])
@@ -150,23 +209,36 @@ def replay(
             typer.echo(json.dumps(evt, indent=indent))
         return
 
-    root = Path("./data/replays").resolve()
-    candidates = list(root.rglob(f"{match_id}.jsonl"))
-    if not candidates:
-        typer.echo(
-            f"No replay file found for {match_id} under {root}. "
-            "Set --api-url or VIBEWARZ_API_URL to fetch from the live API.",
-            err=True,
-        )
+    jsonl = _locate_local_jsonl(match_id, path)
+    if jsonl is None:
         raise typer.Exit(1)
     # Local default: indented. Preserves the pre-remote-mode behavior of
     # `vibewarz replay <id>` for users who just want to eyeball a file.
     indent = None if pretty is False else 2
-    for line in candidates[0].read_text().splitlines():
+    for line in jsonl.read_text().splitlines():
         if not line.strip():
             continue
         obj = json.loads(line)
         typer.echo(json.dumps(obj, indent=indent))
+
+
+def _locate_local_jsonl(match_id: str, explicit_path: Path | None) -> Path | None:
+    if explicit_path is not None:
+        if not explicit_path.exists():
+            typer.echo(f"replay file not found: {explicit_path}", err=True)
+            return None
+        return explicit_path
+    root = DEFAULT_REPLAY_DIR.resolve()
+    candidates = list(root.rglob(f"{match_id}.jsonl"))
+    if not candidates:
+        typer.echo(
+            f"No replay file found for {match_id} under {root}. "
+            "Set --api-url or VIBEWARZ_API_URL to fetch from the live API, "
+            "or pass --path /path/to/{match_id}.jsonl.",
+            err=True,
+        )
+        return None
+    return candidates[0]
 
 
 async def _fetch_remote_replay(match_id: str, api_url: str, api_key: str | None) -> dict:

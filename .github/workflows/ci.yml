@@ -28,3 +28,37 @@ jobs:
         continue-on-error: true
       - name: Tests
         run: uv run --extra dev pytest
+
+  js:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.30.2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install
+        run: pnpm install --frozen-lockfile
+      # Build game-ui first: the viewer typechecks against the package's
+      # emitted dist/index.d.ts (workspace link resolves to `types`), so
+      # the declarations must exist before `tsc --noEmit` runs.
+      - name: Build game-ui
+        run: pnpm -F @vibewarz/game-ui build
+      - name: Typecheck
+        run: pnpm -r --if-present run typecheck
+      # Freshness check: rebuild the viewer SPA and verify the committed
+      # sdk-python/src/vibewarz/viewer_dist/ matches. If a contributor edits
+      # @vibewarz/game-ui but forgets to rebuild the bundle, the
+      # Python wheel ships stale code — catch that here, on day one.
+      - name: Build viewer SPA
+        run: pnpm -F viewer build
+      - name: Assert viewer_dist is fresh
+        run: |
+          if ! git diff --quiet --exit-code sdk-python/src/vibewarz/viewer_dist/; then
+            echo "::error::sdk-python/src/vibewarz/viewer_dist/ is stale. Run 'pnpm -F viewer build' and commit the result." >&2
+            git --no-pager diff --stat sdk-python/src/vibewarz/viewer_dist/
+            exit 1
+          fi

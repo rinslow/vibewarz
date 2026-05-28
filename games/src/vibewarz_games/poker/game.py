@@ -107,6 +107,10 @@ class Poker(Game):
             "raise_locked_seats": [],
             "players": players,
             "history": [],
+            # Per-step additions to `history`. Parallels Curve's trail_delta:
+            # the wire/journal ship this constant-size delta instead of the
+            # cumulative `history`, and consumers append it onto the snapshot.
+            "history_delta": [],
             "placement": [],            # bust-out order, last-out first
             "pot_distribution": None,   # filled when a hand resolves
             "showdown_hands": None,     # at showdown, {seat: hand_string}
@@ -153,6 +157,36 @@ class Poker(Game):
         view["players"] = view_players
         return view
 
+    def delta_view_for(self, state: dict, seat: int) -> dict:
+        """Per-tick wire view: same redaction as `view_for`, minus the
+        cumulative `history` (ship only `history_delta`).
+
+        `history` appends one entry per action and never resets across hands,
+        so re-sending it every tick is O(N²) total bytes over a long match —
+        the same problem Curve's `trails` had on the wire. The SDK
+        StateAccumulator reconstructs `history` by concatenating each tick's
+        `history_delta` onto the `game_start` snapshot, so `bot.act(state)`
+        still sees the full log. Reuses `view_for` for the hole-card/seed/deck
+        redaction, then drops the cumulative field.
+        """
+        view = self.view_for(state, seat)
+        view.pop("history", None)
+        return view
+
+    def journal_view(self, state: dict) -> dict:
+        """Per-tick replay-journal view: drop the cumulative `history` log.
+
+        `history` appends one entry per betting action and is never reset
+        across hands, so journaling the full state every tick makes a long
+        poker match O(N²) (in an 87-tick game it was already ~60% of the
+        bytes). Nothing reconstructs gameplay from per-tick `history` — the
+        viewer never reads it, the per-tick `actions`/`ts`/`tick` fields on
+        the `tick_result` envelope already capture who acted and when, and the
+        complete log survives in the `game_end` `final_state`. Stays
+        omniscient (keeps `seed`); see `_core/base.py:Game.journal_view`.
+        """
+        return {k: v for k, v in state.items() if k != "history"}
+
     def legal_actions(self, state: dict, seat: int) -> list[dict]:
         if state["action_on"] != seat:
             return []
@@ -175,10 +209,14 @@ class Poker(Game):
     # ── step ───────────────────────────────────────────────────────────────
 
     def step(self, state: dict, actions: dict[int, dict]) -> StepResult:
+        # Length of `history` before this step — every return path stamps
+        # `history_delta` with whatever got appended past this point.
+        prev_hist_len = len(state.get("history") or [])
         actor = state["action_on"]
         if actor is None:
-            # No decision required — engine just advances by one tick.
-            new_state = {**state, "tick": state["tick"] + 1}
+            # No decision required — engine just advances by one tick. No
+            # action means no history entry, so history_delta is empty.
+            new_state = {**state, "tick": state["tick"] + 1, "history_delta": []}
             return StepResult(state=new_state, done=False)
 
         action = actions.get(actor)
@@ -202,7 +240,7 @@ class Poker(Game):
                 if _tournament_done(new_state):
                     new_state = _finalize_tournament(new_state)
                     return StepResult(
-                        state=_bump_tick(new_state),
+                        state=_bump_tick(_stamp_history_delta(new_state, prev_hist_len)),
                         done=True,
                         placement=list(new_state["placement"]),
                         reason="elimination",
@@ -226,7 +264,7 @@ class Poker(Game):
                 if _tournament_done(new_state):
                     new_state = _finalize_tournament(new_state)
                     return StepResult(
-                        state=_bump_tick(new_state),
+                        state=_bump_tick(_stamp_history_delta(new_state, prev_hist_len)),
                         done=True,
                         placement=list(new_state["placement"]),
                         reason="elimination",
@@ -253,7 +291,7 @@ class Poker(Game):
                 if _tournament_done(new_state):
                     new_state = _finalize_tournament(new_state)
                     return StepResult(
-                        state=_bump_tick(new_state),
+                        state=_bump_tick(_stamp_history_delta(new_state, prev_hist_len)),
                         done=True,
                         placement=list(new_state["placement"]),
                         reason="elimination",
@@ -268,7 +306,7 @@ class Poker(Game):
             break
 
         return StepResult(
-            state=_bump_tick(new_state),
+            state=_bump_tick(_stamp_history_delta(new_state, prev_hist_len)),
             done=False,
             eliminated_this_tick=tuple(eliminated),
         )
@@ -279,6 +317,14 @@ class Poker(Game):
 
 def _bump_tick(state: dict) -> dict:
     return {**state, "tick": state["tick"] + 1}
+
+
+def _stamp_history_delta(state: dict, prev_len: int) -> dict:
+    """Set `history_delta` to the entries appended to `history` this step
+    (everything past `prev_len`). Called on every step return so the wire/
+    journal carry a constant-size delta the SDK accumulator can reapply."""
+    hist = state.get("history") or []
+    return {**state, "history_delta": hist[prev_len:]}
 
 
 def _only_one_in_hand(state: dict) -> bool:

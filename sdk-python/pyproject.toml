@@ -1,6 +1,6 @@
 [project]
 name = "vibewarz"
-version = "0.6.1"
+version = "0.6.2"
 description = "Python SDK for writing vibewarz bots — play live or locally"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -21,7 +21,7 @@ dependencies = [
   "rich>=13.7",
   "pydantic>=2.7",
   "httpx>=0.27",
-  "vibewarz-games>=0.2,<0.3",
+  "vibewarz-games>=0.2.5,<0.3",
 ]
 
 [project.optional-dependencies]
@@ -34,5 +34,22 @@ vibewarz = "vibewarz.cli:app"
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
+# The bundled React replay viewer (../viewer/ build output, committed under
+# src/vibewarz/viewer_dist/) ships in the wheel automatically: hatchling
+# includes every non-VCS-ignored file inside the package dir, not just *.py.
+# So `vibewarz replay --watch` finds the assets via importlib.resources after
+# a plain `pip install vibewarz`, no Node toolchain required. CI freshness
+# check guards against the committed bundle drifting from the
+# @vibewarz/game-ui source — rebuild with `pnpm -F viewer build`.
 [tool.hatch.build.targets.wheel]
 packages = ["src/vibewarz"]
+
+# Mirror the package into the sdist so a source install
+# (`pip install vibewarz --no-binary :all:`) builds a wheel from a tarball that
+# still contains the viewer.
+[tool.hatch.build.targets.sdist]
+include = [
+  "src/vibewarz/**",
+  "README.md",
+  "pyproject.toml",
+]

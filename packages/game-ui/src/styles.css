@@ -1,0 +1,284 @@
+/* @vibewarz/replay-viewer — default styles.
+ *
+ * Themeable via CSS custom properties on any ancestor element. Defaults
+ * shown below are the platform's dark theme; override them on a wrapper to
+ * re-skin. Example (apps/web Tailwind theme bridge):
+ *
+ *   <div style={{
+ *     "--vw-color-surface": "var(--color-surface)",
+ *     "--vw-color-text-muted": "var(--color-text-muted)",
+ *     // …
+ *   }}>
+ *     <CurveReplay events={events} />
+ *   </div>
+ *
+ * Scope: every selector below is namespaced to `.vw-replay` so this stylesheet
+ * is safe to import alongside an app's own global CSS.
+ */
+
+.vw-replay {
+  /* Theme tokens (override any of these to re-skin). */
+  --vw-color-bg: #0a0a0b;
+  --vw-color-surface: #141416;
+  --vw-color-surface-2: #1c1c20;
+  --vw-color-border: #2a2a30;
+  --vw-color-text: #e8e8ea;
+  --vw-color-text-muted: #8a8a92;
+  --vw-color-accent: #a3e635;
+  --vw-color-danger: #f43f5e;
+  --vw-font-mono: ui-monospace, "JetBrains Mono", Menlo, Consolas, monospace;
+  --vw-radius: 8px;
+
+  color: var(--vw-color-text);
+  font-family: inherit;
+}
+
+.vw-replay__layout {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+}
+
+@media (min-width: 1024px) {
+  .vw-replay__layout {
+    grid-template-columns: 1fr 18rem;
+  }
+}
+
+.vw-replay__board {
+  border: 1px solid var(--vw-color-border);
+  border-radius: var(--vw-radius);
+  overflow: hidden;
+  background-color: var(--vw-color-bg);
+  display: flex;
+  justify-content: center;
+}
+
+.vw-replay__empty {
+  border: 1px solid var(--vw-color-border);
+  border-radius: var(--vw-radius);
+  padding: 1.5rem;
+  background-color: var(--vw-color-surface);
+  color: var(--vw-color-text-muted);
+  font-family: var(--vw-font-mono);
+  font-size: 0.875rem;
+}
+
+.vw-replay__sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.vw-replay__player {
+  border: 1px solid var(--vw-color-border);
+  border-radius: var(--vw-radius);
+  padding: 0.75rem;
+  background-color: var(--vw-color-surface);
+}
+
+.vw-replay__player--dead {
+  opacity: 0.6;
+}
+
+.vw-replay__player-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.vw-replay__player-chip {
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.vw-replay__player-name {
+  font-family: var(--vw-font-mono);
+  font-size: 0.875rem;
+  margin: 0;
+}
+
+.vw-replay__player-status {
+  margin-left: auto;
+  font-family: var(--vw-font-mono);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.vw-replay__player-status--alive {
+  color: var(--vw-color-accent);
+}
+
+.vw-replay__player-status--dead {
+  color: var(--vw-color-danger);
+}
+
+.vw-replay__player-finish {
+  font-family: var(--vw-font-mono);
+  font-size: 0.75rem;
+  color: var(--vw-color-text-muted);
+  margin: 0.5rem 0 0;
+}
+
+.vw-replay__player-stats {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+  font-family: var(--vw-font-mono);
+  font-size: 0.75rem;
+  color: var(--vw-color-text-muted);
+}
+
+/* Blast board */
+
+.vw-blast__board {
+  border: 1px solid var(--vw-color-border);
+  border-radius: var(--vw-radius);
+  overflow: hidden;
+  background-color: var(--vw-color-bg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 1rem;
+  gap: 1rem;
+}
+
+.vw-blast__svg {
+  border-radius: 4px;
+}
+
+.vw-blast__hud {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.5rem;
+  width: 100%;
+}
+
+@media (min-width: 1024px) {
+  .vw-blast__hud {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.vw-blast__hud-card {
+  border: 1px solid var(--vw-color-border);
+  border-radius: 6px;
+  padding: 0.5rem;
+  font-family: var(--vw-font-mono);
+  font-size: 0.75rem;
+}
+
+.vw-blast__hud-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.vw-blast__hud-you {
+  font-size: 10px;
+  text-transform: uppercase;
+  color: var(--vw-color-text-muted);
+}
+
+.vw-blast__hud-stats {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+  color: var(--vw-color-text-muted);
+}
+
+.vw-blast__hud-dead {
+  margin-left: auto;
+  color: var(--vw-color-danger);
+}
+
+/* Poker sidebar info card */
+
+.vw-poker__info {
+  border: 1px solid var(--vw-color-border);
+  border-radius: var(--vw-radius);
+  padding: 0.75rem;
+  background-color: var(--vw-color-surface);
+  font-family: var(--vw-font-mono);
+  font-size: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.vw-poker__info-row {
+  display: flex;
+  justify-content: space-between;
+}
+
+.vw-poker__info-row > span:first-child {
+  color: var(--vw-color-text-muted);
+}
+
+/* Playback controls */
+
+.vw-replay__controls {
+  margin-top: 1rem;
+  border: 1px solid var(--vw-color-border);
+  border-radius: var(--vw-radius);
+  padding: 1rem;
+  background-color: var(--vw-color-surface);
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.vw-replay__btn-play {
+  background-color: var(--vw-color-accent);
+  color: #000;
+  padding: 0.375rem 0.75rem;
+  border-radius: 4px;
+  border: 0;
+  font-family: var(--vw-font-mono);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.vw-replay__btn-reset {
+  background: none;
+  border: 0;
+  font-family: var(--vw-font-mono);
+  font-size: 0.875rem;
+  color: var(--vw-color-text-muted);
+  cursor: pointer;
+}
+
+.vw-replay__btn-reset:hover {
+  color: var(--vw-color-text);
+}
+
+.vw-replay__scrubber {
+  flex: 1;
+}
+
+.vw-replay__scrubber input[type="range"] {
+  width: 100%;
+  accent-color: var(--vw-color-accent);
+}
+
+.vw-replay__tick {
+  font-family: var(--vw-font-mono);
+  font-size: 0.75rem;
+  color: var(--vw-color-text-muted);
+  width: 5rem;
+  text-align: right;
+}
+
+.vw-replay__speed {
+  background-color: var(--vw-color-surface-2);
+  border: 1px solid var(--vw-color-border);
+  color: var(--vw-color-text);
+  border-radius: 4px;
+  padding: 0.25rem 0.5rem;
+  font-family: var(--vw-font-mono);
+  font-size: 0.75rem;
+}

@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>vibewarz replay</title>
+    <style>
+      :root {
+        color-scheme: dark;
+      }
+      html, body {
+        margin: 0;
+        padding: 0;
+        background: #0a0a0b;
+        color: #e8e8ea;
+        font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+        min-height: 100vh;
+      }
+      #root {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 1.5rem 1rem;
+      }
+      .vw-app__title {
+        font-family: ui-monospace, "JetBrains Mono", Menlo, Consolas, monospace;
+        font-size: 0.875rem;
+        color: #8a8a92;
+        margin: 0 0 1rem;
+      }
+      .vw-app__title strong {
+        color: #e8e8ea;
+        font-weight: 600;
+      }
+      .vw-app__error {
+        border: 1px solid #2a2a30;
+        border-radius: 8px;
+        padding: 1rem;
+        background: #141416;
+        font-family: ui-monospace, "JetBrains Mono", Menlo, Consolas, monospace;
+        font-size: 0.875rem;
+      }
+      .vw-app__error--err { color: #f43f5e; }
+    </style>
+    <script type="module" crossorigin src="./assets/index.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index.css">
+  </head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>

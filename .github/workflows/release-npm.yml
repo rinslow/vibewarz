@@ -1,0 +1,54 @@
+name: release-npm
+
+# Companion to release.yml (PyPI). This workflow handles the JS side:
+# - on push to main, if there are pending changesets, opens/updates a
+#   "Version Packages" PR that bumps @vibewarz/game-ui and refreshes
+#   CHANGELOGs;
+# - when that PR is merged (the bump commit hits main), it publishes the
+#   bumped packages to npm using NPM_TOKEN.
+#
+# The Python release is gated on a `v*` tag; the JS release is gated on the
+# changesets PR cycle. They're intentionally separate — bumping the SDK and
+# bumping the React viewer follow different cadences and reviewers.
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: release-npm-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.30.2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+      - name: Install
+        run: pnpm install --frozen-lockfile
+      - name: Build
+        run: pnpm -F @vibewarz/game-ui build
+      - name: Create release PR or publish
+        uses: changesets/action@v1
+        with:
+          publish: pnpm release
+          version: pnpm changeset version
+          title: "chore(release): version packages"
+          commit: "chore(release): version packages"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}

@@ -112,6 +112,39 @@ def test_shape_mismatch_skips_append() -> None:
     assert acc.current["trail_delta"] == [[3.0]]
 
 
+def test_delta_concats_flat_history_delta_onto_history() -> None:
+    """Poker flat rule: history_delta is concatenated onto the flat history."""
+    acc = StateAccumulator()
+    acc.on_snapshot({"tick": 0, "history": [], "history_delta": []})
+    acc.on_delta({"tick": 1, "history_delta": [{"seat": 0, "action": "fold"}]})
+    acc.on_delta({"tick": 2, "history_delta": [{"seat": 1, "action": "bet"}]})
+    acc.on_delta({"tick": 3, "history_delta": []})  # an actor-None tick
+    assert acc.current["history"] == [
+        {"seat": 0, "action": "fold"},
+        {"seat": 1, "action": "bet"},
+    ]
+    assert acc.current["history_delta"] == []
+
+
+def test_same_tick_history_delta_does_not_double_append() -> None:
+    """tick_request (pre-step) re-sends the prior tick's view; the flat
+    history append must not double-apply on a non-advancing tick."""
+    acc = StateAccumulator()
+    acc.on_snapshot({"tick": 0, "history": [], "history_delta": []})
+    acc.on_delta({"tick": 1, "history_delta": [{"seat": 0, "action": "call"}]})
+    acc.on_delta({"tick": 1, "history_delta": [{"seat": 0, "action": "call"}]})  # redundant
+    assert acc.current["history"] == [{"seat": 0, "action": "call"}]
+
+
+def test_flat_append_does_not_mutate_snapshot() -> None:
+    snapshot = {"tick": 0, "history": [{"seat": 0, "action": "blind"}], "history_delta": []}
+    acc = StateAccumulator()
+    acc.on_snapshot(snapshot)
+    acc.on_delta({"tick": 1, "history_delta": [{"seat": 1, "action": "raise"}]})
+    assert snapshot["history"] == [{"seat": 0, "action": "blind"}]  # caller untouched
+    assert len(acc.current["history"]) == 2
+
+
 def test_reset_clears_state() -> None:
     acc = StateAccumulator()
     acc.on_snapshot({"tick": 0, "trails": [[(0.0, 0.0)]]})

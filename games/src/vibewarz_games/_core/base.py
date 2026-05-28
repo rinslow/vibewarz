@@ -141,5 +141,26 @@ class Game(ABC):
         """
         return self.snapshot_view_for(state, seat)
 
+    def journal_view(self, state: dict) -> dict:
+        """Per-tick view written to the persisted replay journal.
+
+        Distinct from both `delta_view_for` and the wire views:
+
+          - It is **omniscient and unredacted** — replays store the full
+            authoritative state (hidden-info games re-apply per-seat
+            redaction client-side), so this MUST NOT strip seat-owned fields,
+            and unlike `view_for`/`delta_view_for` it **keeps `seed`**.
+          - It only drops *cumulative* fields that a consumer can reconstruct
+            from a parallel `<base>_delta` (e.g. Curve's growing `trails`),
+            so the on-disk replay is O(N) instead of O(N²) over a match.
+
+        Default returns the state unchanged: games whose per-tick state is
+        already bounded (Poker, Blast) need no override and keep journaling
+        full state. Append-only games (Curve) override to drop the cumulative
+        field. Used by both replay-journal writers (the server's MatchRunner
+        and the SDK's `play-local`).
+        """
+        return state
+
     def render_ascii(self, state: dict) -> str:
         return ""

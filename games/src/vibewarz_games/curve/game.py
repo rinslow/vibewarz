@@ -192,6 +192,21 @@ class Curve(Game):
             if k != "seed" and k != "trails"
         }
 
+    def journal_view(self, state: dict) -> dict:
+        """Per-tick replay-journal view: drop the cumulative `trails` array,
+        keep everything else (including `trail_delta` and `seed`).
+
+        Same O(N²) motivation as `delta_view_for`, but for the persisted
+        replay rather than the wire: without this, every `tick_result` line
+        re-serializes the full growing `trails` and an N-tick Curve match
+        balloons to ~N² bytes (~150 MB for a full match). Unlike
+        `delta_view_for`, the journal stays omniscient and keeps `seed` — it
+        is the unredacted record, and a viewer reconstructs `trails` from the
+        `game_start` snapshot + each tick's `trail_delta`. See
+        `_core/base.py:Game.journal_view`.
+        """
+        return {k: v for k, v in state.items() if k != "trails"}
+
     def alive_seats(self, state: dict) -> list[int]:
         return [p["seat"] for p in state["players"] if p["alive"]]
 
