@@ -38,6 +38,10 @@ jobs:
           node-version: 22
           cache: pnpm
           registry-url: https://registry.npmjs.org
+      # node 22 ships npm 10.x, but OIDC trusted publishing (no NPM_TOKEN)
+      # needs npm >= 11.5.1. changeset publish shells out to this npm.
+      - name: Ensure npm supports OIDC trusted publishing
+        run: npm install -g npm@latest
       - name: Install
         run: pnpm install --frozen-lockfile
       - name: Build
