@@ -126,7 +126,6 @@ export function BlastBoard({
           <Character
             key={`pl-${p.seat}`}
             player={p}
-            isMe={mySeat !== null && p.seat === mySeat}
             facing={facingRef.current.get(p.seat) ?? "down"}
           />
         ))}
@@ -372,11 +371,9 @@ function Powerup({ kind, x, y }: { kind: string; x: number; y: number }) {
  */
 function Character({
   player,
-  isMe,
   facing,
 }: {
   player: BlastPlayer;
-  isMe: boolean;
   facing: Facing;
 }) {
   if (!player.alive) return null;
@@ -401,10 +398,6 @@ function Character({
         transition: `transform ${MOVE_TRANSITION_MS}ms linear`,
       }}
     >
-      {/* halo for "this is you" */}
-      {isMe && (
-        <circle r={TILE * 0.46} fill={`${color}1a`} stroke={color} strokeWidth={1} opacity={0.6} />
-      )}
       {/* drop shadow */}
       <ellipse cx={0} cy={13} rx={9} ry={2.5} fill="#00000066" />
 
@@ -473,12 +466,14 @@ function PlayerHud({
             className="vw-blast__hud-card"
             style={{
               borderColor: p.alive ? p.color : "#333",
+              // Your own card is tinted with your seat color so "this is me"
+              // reads from color alone — same hue as your character.
+              backgroundColor: isMe && p.alive ? `${p.color}14` : undefined,
               opacity: p.alive ? 1 : 0.4,
             }}
           >
             <div className="vw-blast__hud-row">
               <span style={{ color: p.color }}>seat {p.seat}</span>
-              {isMe && <span className="vw-blast__hud-you">you</span>}
             </div>
             <div className="vw-blast__hud-stats">
               <span>

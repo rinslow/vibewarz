@@ -137,7 +137,15 @@ export function buildCurveTimeline(events: RawEvent[]): CurveTimeline {
 // Curve: tick_interval_ms=50 → 20 Hz live cadence.
 const CURVE_TICKS_PER_SEC = 20;
 
-export function CurveReplay({ events }: { events: RawEvent[] }) {
+export function CurveReplay({
+  events,
+  mySeat = null,
+}: {
+  events: RawEvent[];
+  // Seat the viewer played, so their row reads in their own seat color.
+  // null → neutral spectator view (no highlight).
+  mySeat?: number | null;
+}) {
   const { trails, frames } = useMemo(() => buildCurveTimeline(events), [events]);
   const totalFrames = frames.length;
   const playback = usePlayback(totalFrames, CURVE_TICKS_PER_SEC);
@@ -168,6 +176,7 @@ export function CurveReplay({ events }: { events: RawEvent[] }) {
         <aside className="vw-replay__sidebar">
           {current.state.players.map((p) => {
             const finalPos = finalPlacement.indexOf(p.seat);
+            const isMe = mySeat !== null && p.seat === mySeat;
             return (
               <div
                 key={p.seat}
@@ -175,6 +184,9 @@ export function CurveReplay({ events }: { events: RawEvent[] }) {
                   "vw-replay__player" +
                   (p.alive ? "" : " vw-replay__player--dead")
                 }
+                // Your own row is tinted with your seat color — identifies you
+                // by color alone, matching your curve on the board.
+                style={isMe ? { backgroundColor: `${p.color}14` } : undefined}
               >
                 <div className="vw-replay__player-row">
                   <div

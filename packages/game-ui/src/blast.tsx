@@ -25,7 +25,15 @@ export function buildBlastFrames(events: RawEvent[]): Frame[] {
 // Blast: tick_interval_ms=100 → 10 Hz live cadence.
 const BLAST_TICKS_PER_SEC = 10;
 
-export function BlastReplay({ events }: { events: RawEvent[] }) {
+export function BlastReplay({
+  events,
+  mySeat = null,
+}: {
+  events: RawEvent[];
+  // Seat the viewer played, so their row/character read in their own seat
+  // color. null → neutral spectator view (no highlight).
+  mySeat?: number | null;
+}) {
   const frames = useMemo(() => buildBlastFrames(events), [events]);
   const totalFrames = frames.length;
   const playback = usePlayback(totalFrames, BLAST_TICKS_PER_SEC);
@@ -41,7 +49,7 @@ export function BlastReplay({ events }: { events: RawEvent[] }) {
     <div className="vw-replay">
       <div className="vw-replay__layout">
         <div>
-          <BlastBoard state={current.state} mySeat={null} />
+          <BlastBoard state={current.state} mySeat={mySeat} />
           <PlaybackControls
             totalFrames={totalFrames}
             currentTick={current.state.tick}
@@ -52,6 +60,7 @@ export function BlastReplay({ events }: { events: RawEvent[] }) {
         <aside className="vw-replay__sidebar">
           {current.state.players.map((p) => {
             const finalPos = finalPlacement.indexOf(p.seat);
+            const isMe = mySeat !== null && p.seat === mySeat;
             return (
               <div
                 key={p.seat}
@@ -59,6 +68,9 @@ export function BlastReplay({ events }: { events: RawEvent[] }) {
                   "vw-replay__player" +
                   (p.alive ? "" : " vw-replay__player--dead")
                 }
+                // Your own row is tinted with your seat color — identifies you
+                // by color alone, matching your character on the board.
+                style={isMe ? { backgroundColor: `${p.color}14` } : undefined}
               >
                 <div className="vw-replay__player-row">
                   <div

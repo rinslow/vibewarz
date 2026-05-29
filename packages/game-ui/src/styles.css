@@ -177,12 +177,6 @@
   justify-content: space-between;
 }
 
-.vw-blast__hud-you {
-  font-size: 10px;
-  text-transform: uppercase;
-  color: var(--vw-color-text-muted);
-}
-
 .vw-blast__hud-stats {
   display: flex;
   gap: 0.5rem;
