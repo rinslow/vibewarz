@@ -1,6 +1,6 @@
 [project]
 name = "vibewarz"
-version = "0.6.2"
+version = "0.6.3"
 description = "Python SDK for writing vibewarz bots — play live or locally"
 readme = "README.md"
 requires-python = ">=3.11"
