@@ -156,6 +156,43 @@ def test_default_action_is_safe(blast: Blast) -> None:
     assert blast.default_action(state, 0) == {"move": "stay", "drop_bomb": False}
 
 
+def test_is_legal_drop_at_capacity_is_legal_noop(blast: Blast) -> None:
+    # A drop with no spare bomb is well-formed, so it's legal (not an
+    # elimination-worthy illegal action) — step() resolves it as a no-op.
+    state = blast.initial_state(seed=1, num_players=4)
+    state["players"][0]["bombs_active"] = state["players"][0]["bombs_max"]
+    assert blast.is_legal(state, 0, {"move": "stay", "drop_bomb": True})
+
+
+def test_is_legal_drop_onto_occupied_tile_is_legal_noop(blast: Blast) -> None:
+    state = blast.initial_state(seed=1, num_players=4)
+    p = state["players"][0]
+    state["bombs"].append(
+        {"x": p["x"], "y": p["y"], "timer": 10, "owner": 0, "range": 2}
+    )
+    assert blast.is_legal(state, 0, {"move": "stay", "drop_bomb": True})
+
+
+def test_step_drop_at_capacity_is_harmless_noop(blast: Blast) -> None:
+    # The reported bug: pressing the bomb key with no spare bomb must not kill
+    # you. The action resolves as a no-op — no extra bomb, no death.
+    state = blast.initial_state(seed=1, num_players=4)
+    _isolate_seats(state, {0: (1, 1)})
+    _clear_radius(state, 1, 1)
+    state["players"][0]["bombs_active"] = state["players"][0]["bombs_max"]
+    before_bombs = len(state["bombs"])
+
+    actions = _stay()
+    actions[0] = {"move": "stay", "drop_bomb": True}
+    res = blast.step(state, actions)
+
+    p0 = res.state["players"][0]
+    assert p0["alive"]
+    assert p0["bombs_active"] == state["players"][0]["bombs_max"]
+    assert len(res.state["bombs"]) == before_bombs
+    assert 0 not in res.eliminated_this_tick
+
+
 # ── movement ───────────────────────────────────────────────────────────────
 
 

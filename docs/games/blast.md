@@ -88,6 +88,13 @@ new ring — players, bombs, powerups — is crushed.
 - Missing the 100 ms deadline → `{"move": "stay", "drop_bomb": false}`.
 - Returning an illegal action on the live server eliminates you;
   locally we substitute-and-warn.
+- A `drop_bomb: true` you can't act on — you're at `bombs_max`, or a bomb
+  already sits on your tile — is **not** illegal. It's a harmless no-op, so
+  mashing the bomb key never eliminates you.
+- That no-op gets no explicit feedback: it isn't an `error`, and it isn't a
+  `null`-substituted action in `tick_result`. Infer it from the next state
+  (no new bomb on your tile, `bombs_active` unchanged), just like a move
+  blocked by a wall.
 
 ## Tips for a first bot
 

@@ -182,15 +182,12 @@ class Blast(Game):
         drop = action.get("drop_bomb", False)
         if move not in MOVES:
             return False
-        if not isinstance(drop, bool):
-            return False
-        if drop:
-            player = state["players"][seat]
-            if player["bombs_active"] >= player["bombs_max"]:
-                return False
-            if _bomb_at(state["bombs"], player["x"], player["y"]):
-                return False
-        return True
+        # A drop_bomb with no spare bomb, or onto a tile that already holds a
+        # bomb, is resolved as a harmless no-op in step() (see the guards in
+        # the drop-bomb phase) — so it stays legal, not an elimination-worthy
+        # illegal action. legal_actions() still gates these out so bots aren't
+        # offered pointless drops.
+        return isinstance(drop, bool)
 
     def default_action(self, state: dict, seat: int) -> dict:
         return {"move": "stay", "drop_bomb": False}
