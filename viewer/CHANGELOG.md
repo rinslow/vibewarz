@@ -1,5 +1,12 @@
 # viewer
 
+## 0.0.3
+
+### Patch Changes
+
+- Updated dependencies [1876e4c]
+  - @vibewarz/game-ui@0.2.15
+
 ## 0.0.2
 
 ### Patch Changes

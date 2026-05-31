@@ -1,5 +1,11 @@
 # @vibewarz/game-ui
 
+## 0.2.15
+
+### Patch Changes
+
+- 1876e4c: Add the Vibelords lane-RTS renderer — board, replay viewer, and asset sheet — plus `detectGameId` support for the `vibelords` game.
+
 ## 0.2.0
 
 ### Minor Changes
