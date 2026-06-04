@@ -1,5 +1,11 @@
 # @vibewarz/game-ui
 
+## 0.2.16
+
+### Patch Changes
+
+- 8ccae2a: Label players by `game_start.names` when the replay carries them (fallback: "seat N"); add a subtle vibewarz wordmark to the playback controls bar.
+
 ## 0.2.15
 
 ### Patch Changes
