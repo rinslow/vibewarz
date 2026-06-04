@@ -106,6 +106,7 @@ def play(
     verbose: bool = False,
     record: bool = True,
     replay_dir: Path | None = None,
+    names: list[str] | None = None,
 ) -> LocalResult:
     if game_id not in GAMES:
         raise RuntimeError(f"unknown game {game_id!r}; known: {sorted(GAMES)}")
@@ -113,6 +114,10 @@ def play(
     meta = game.meta
 
     num_players = len(bot_paths)
+    if names is not None and len(names) != num_players:
+        raise RuntimeError(
+            f"got {len(names)} names for {num_players} bots; pass --name once per --bot"
+        )
     if num_players < meta.min_players:
         raise RuntimeError(
             f"{game_id} needs >= {meta.min_players} players, got {num_players}"
@@ -157,6 +162,7 @@ def play(
                 state=state,
                 match_id=match_id,
                 game_id=game_id,
+                names={seat: name for seat, name in enumerate(names)} if names else None,
             )
         )
 

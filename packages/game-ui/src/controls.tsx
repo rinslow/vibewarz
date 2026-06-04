@@ -144,6 +144,7 @@ export function PlaybackControls({
         ))}
       </select>
       {extra}
+      <span className="vw-replay__wordmark">vibewarz</span>
     </div>
   );
 }

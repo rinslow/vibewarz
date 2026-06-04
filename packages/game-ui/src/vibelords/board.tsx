@@ -103,9 +103,13 @@ function hashId(id: string): number {
 export function VibelordsBoard({
   state,
   mySeat,
+  names = null,
 }: {
   state: VibelordsState | null;
   mySeat: number | null;
+  // Optional per-seat display names (string keys, as journaled in
+  // game_start.names). Falls back to "seat N" labels when absent.
+  names?: Record<string, string> | null;
 }) {
   if (!state) {
     return <div className="vw-replay vw-replay__empty">waiting for board…</div>;
@@ -118,7 +122,7 @@ export function VibelordsBoard({
   return (
     <div className="vw-replay vw-vibelords__board">
       <style>{STYLE_SHEET}</style>
-      <ResourceHud state={state} mySeat={mySeat} />
+      <ResourceHud state={state} mySeat={mySeat} names={names} />
       <svg
         viewBox={`0 0 ${W} ${H}`}
         className="vw-vibelords__svg"
@@ -1135,9 +1139,11 @@ function Fx({
 function ResourceHud({
   state,
   mySeat,
+  names,
 }: {
   state: VibelordsState;
   mySeat: number | null;
+  names: Record<string, string> | null;
 }) {
   return (
     <div className="vw-vibelords__hud">
@@ -1148,6 +1154,7 @@ function ResourceHud({
           base={state.bases[p.seat]}
           isMe={mySeat !== null && p.seat === mySeat}
           align={p.seat === 0 ? "left" : "right"}
+          label={names?.[String(p.seat)] ?? `seat ${p.seat}`}
         />
       ))}
     </div>
@@ -1159,11 +1166,13 @@ function PlayerHudCard({
   base,
   isMe,
   align,
+  label,
 }: {
   player: VibelordsPlayer;
   base: VibelordsBase | undefined;
   isMe: boolean;
   align: "left" | "right";
+  label: string;
 }) {
   const cost = ageUpCost(player.age);
   const specialReady = player.special_cd <= 0;
@@ -1180,7 +1189,7 @@ function PlayerHudCard({
     >
       <div className="vw-vibelords__hud-top">
         <span className="vw-vibelords__hud-chip" style={{ backgroundColor: player.color }} />
-        <span style={{ color: player.color }}>seat {player.seat}</span>
+        <span style={{ color: player.color }}>{label}</span>
         <span className="vw-vibelords__hud-age">{AGE_NAMES[player.age] ?? `age ${player.age}`}</span>
       </div>
       <div className="vw-vibelords__hud-stats">

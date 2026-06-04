@@ -5,7 +5,7 @@ import { useMemo } from "react";
 import { BlastBoard } from "./blast/board";
 import type { BlastState } from "./blast/types";
 import { PlaybackControls, usePlayback } from "./controls";
-import type { RawEvent, RawGameEndEvt } from "./types";
+import { seatLabel, type RawEvent, type RawGameEndEvt } from "./types";
 
 type Frame = { state: BlastState };
 
@@ -77,7 +77,7 @@ export function BlastReplay({
                     className="vw-replay__player-chip"
                     style={{ backgroundColor: p.color }}
                   />
-                  <p className="vw-replay__player-name">seat {p.seat}</p>
+                  <p className="vw-replay__player-name">{seatLabel(events, p.seat)}</p>
                   <span
                     className={
                       "vw-replay__player-status " +

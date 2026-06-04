@@ -5,7 +5,12 @@ import { useMemo } from "react";
 import { VibelordsBoard } from "./vibelords/board";
 import { AGE_NAMES, VIBELORDS_TICKS_PER_SEC, type VibelordsState } from "./vibelords/types";
 import { PlaybackControls, usePlayback } from "./controls";
-import type { RawEvent, RawGameEndEvt } from "./types";
+import {
+  seatLabel,
+  type RawEvent,
+  type RawGameEndEvt,
+  type RawGameStartEvt,
+} from "./types";
 
 type Frame = { state: VibelordsState };
 
@@ -30,6 +35,12 @@ export function VibelordsReplay({
   mySeat?: number | null;
 }) {
   const frames = useMemo(() => buildVibelordsFrames(events), [events]);
+  const names = useMemo(() => {
+    const start = events.find((e) => e.type === "game_start") as
+      | RawGameStartEvt
+      | undefined;
+    return start?.names ?? null;
+  }, [events]);
   const totalFrames = frames.length;
   const playback = usePlayback(totalFrames, VIBELORDS_TICKS_PER_SEC);
   const current = frames[Math.min(playback.frame, Math.max(0, totalFrames - 1))];
@@ -44,7 +55,7 @@ export function VibelordsReplay({
     <div className="vw-replay">
       <div className="vw-replay__layout">
         <div>
-          <VibelordsBoard state={current.state} mySeat={mySeat} />
+          <VibelordsBoard state={current.state} mySeat={mySeat} names={names} />
           <PlaybackControls
             totalFrames={totalFrames}
             currentTick={current.state.tick}
@@ -69,7 +80,7 @@ export function VibelordsReplay({
                     className="vw-replay__player-chip"
                     style={{ backgroundColor: p.color }}
                   />
-                  <p className="vw-replay__player-name">seat {p.seat}</p>
+                  <p className="vw-replay__player-name">{seatLabel(events, p.seat)}</p>
                   <span
                     className={
                       "vw-replay__player-status " +

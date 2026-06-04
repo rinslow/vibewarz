@@ -45,10 +45,21 @@ function App() {
   }
 
   const game = detectGameId(replay);
+  const names = (
+    replay.events.find((e) => e.type === "game_start") as
+      | { names?: Record<string, string> }
+      | undefined
+  )?.names;
+  const matchup = names
+    ? Object.entries(names)
+        .sort(([a], [b]) => Number(a) - Number(b))
+        .map(([, n]) => n)
+        .join(" vs ")
+    : null;
   return (
     <>
       <p className="vw-app__title">
-        <strong>{replay.match_id}</strong> · {game ?? "(unknown)"} ·{" "}
+        <strong>{matchup ?? replay.match_id}</strong> · {game ?? "(unknown)"} ·{" "}
         {replay.events.length} events
       </p>
       {game === "curve" ? (

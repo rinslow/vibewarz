@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 import { PlaybackControls, usePlayback } from "./controls";
 import { PokerBoard } from "./poker/board";
 import type { PokerState } from "./poker/types";
-import type { RawEvent, RawGameEndEvt } from "./types";
+import { seatLabel, type RawEvent, type RawGameEndEvt } from "./types";
 
 type Frame = { state: PokerState };
 
@@ -139,7 +139,7 @@ export function PokerReplay({ events }: { events: RawEvent[] }) {
                     className="vw-replay__player-chip"
                     style={{ backgroundColor: p.color }}
                   />
-                  <p className="vw-replay__player-name">seat {p.seat}</p>
+                  <p className="vw-replay__player-name">{seatLabel(events, p.seat)}</p>
                   <span
                     className={
                       "vw-replay__player-status " +

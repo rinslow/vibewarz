@@ -30,6 +30,10 @@ class GameStartEvt(BaseModel):
     # tagging shipped. New replays always carry this; viewers should prefer
     # ReplayEnvelope.game_id and use this as a fallback.
     game_id: str | None = None
+    # Optional display names keyed by seat (e.g. {0: "Anthropic", 1: "OpenAI"}).
+    # Absent on replays written before naming shipped; viewers fall back to
+    # seat labels.
+    names: dict[int, str] | None = None
 
 
 class TickResultEvt(BaseModel):

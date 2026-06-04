@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef } from "react";
 
 import { PlaybackControls, usePlayback } from "./controls";
-import type { RawEvent, RawGameEndEvt } from "./types";
+import { seatLabel, type RawEvent, type RawGameEndEvt } from "./types";
 
 type PowerupKind = "speed" | "slow" | "god";
 type Powerup = { id: string; kind: PowerupKind; x: number; y: number };
@@ -193,7 +193,7 @@ export function CurveReplay({
                     className="vw-replay__player-chip"
                     style={{ backgroundColor: p.color }}
                   />
-                  <p className="vw-replay__player-name">seat {p.seat}</p>
+                  <p className="vw-replay__player-name">{seatLabel(events, p.seat)}</p>
                   <span
                     className={
                       "vw-replay__player-status " +

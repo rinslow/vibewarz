@@ -361,3 +361,12 @@
   font-family: var(--vw-font-mono);
   font-size: 0.75rem;
 }
+
+.vw-replay__wordmark {
+  font-family: var(--vw-font-mono);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--vw-color-text-muted);
+  user-select: none;
+}

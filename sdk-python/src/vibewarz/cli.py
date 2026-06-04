@@ -76,6 +76,11 @@ def play(
 def play_local(
     game: str = typer.Option(..., help="Game id, e.g. curve | poker | blast."),
     bot: list[Path] = typer.Option(..., "--bot", help="Path to a bot script. Pass --bot once per seat."),
+    name: list[str] = typer.Option(
+        None,
+        "--name",
+        help="Display name for a seat, in --bot order. Pass --name once per --bot (or not at all).",
+    ),
     seed: int = typer.Option(None, help="Random seed for reproducible matches."),
     max_ticks: int = typer.Option(None, help="Override the game's default max-ticks limit."),
     verbose: bool = typer.Option(False, help="Print eliminations + illegal-action substitutions."),
@@ -107,6 +112,7 @@ def play_local(
             verbose=verbose,
             record=record,
             replay_dir=replay_dir,
+            names=list(name) if name else None,
         )
     except RuntimeError as e:
         typer.echo(str(e), err=True)

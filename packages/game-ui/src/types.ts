@@ -9,6 +9,9 @@ export type RawGameStartEvt = {
   seed: number;
   match_id: string;
   game_id?: string;
+  // Optional display names keyed by seat ("0", "1", ...). Absent on replays
+  // written before naming shipped — consumers fall back to seat labels.
+  names?: Record<string, string>;
 };
 
 export type RawTickResultEvt = {
@@ -37,6 +40,16 @@ export type RawReplay = {
   game_id?: string;
   events: RawEvent[];
 };
+
+// Display label for a seat: the game_start name when the replay carries one,
+// else "seat N". Renderers derive this from their own `events` prop so no
+// component API has to change to support named replays.
+export function seatLabel(events: RawEvent[], seat: number): string {
+  const start = events.find((e) => e.type === "game_start") as
+    | RawGameStartEvt
+    | undefined;
+  return start?.names?.[String(seat)] ?? `seat ${seat}`;
+}
 
 // Inferred game id when the envelope didn't tag it (replays written before
 // envelope tagging). Looks at the shape of the initial state.

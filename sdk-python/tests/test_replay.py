@@ -131,6 +131,28 @@ async def test_fetch_replay_legacy_envelope_without_game_id() -> None:
     assert env.game_id is None
 
 
+def test_game_start_names_parses_string_keys_and_defaults_none() -> None:
+    """`names` is keyed by seat — string keys over the wire, int keys in the
+    model (same coercion as TickResultEvt.actions). Absent on replays written
+    before naming shipped, so it must default to None."""
+    named = GameStartEvt.model_validate(
+        {
+            "type": "game_start",
+            "seed": 1,
+            "state": {},
+            "match_id": "m1",
+            "game_id": "vibelords",
+            "names": {"0": "Anthropic", "1": "OpenAI"},
+        }
+    )
+    assert named.names == {0: "Anthropic", 1: "OpenAI"}
+
+    legacy = GameStartEvt.model_validate(
+        {"type": "game_start", "seed": 1, "state": {}, "match_id": "m1"}
+    )
+    assert legacy.names is None
+
+
 def test_tick_result_actions_parses_string_keys() -> None:
     """JSON has no integer keys — the server serializes `actions: dict[int,
     ...]` with string seat numbers ("0", "1", ...). Pydantic v2 coerces
