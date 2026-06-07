@@ -17,8 +17,9 @@ way poker is.
 - **Cadence:** `tick_interval_ms = 100` → 10 ticks/second
 - **Lane:** 1D, length `1000.0`. Your base sits at `x = 0` (seat 0) or
   `x = 1000` (seat 1); units march toward the enemy end.
-- **Match length:** capped at `max_ticks = 1800` (~3 min). Raze the
-  enemy base to win sooner.
+- **Match length:** capped at `max_ticks = 3600` (~6 min). Raze the
+  enemy base to win sooner. (Read the cap from `state["max_ticks"]`
+  rather than hardcoding it.)
 
 ## The counter cycle
 
@@ -130,7 +131,7 @@ deploying before it appears?"*
 
 | Key | Meaning |
 |---|---|
-| `tick`, `max_ticks` | current tick / 1800 |
+| `tick`, `max_ticks` | current tick / the match cap (3600) |
 | `lane` | `{"length": 1000.0}` |
 | `bases` | `[{seat, x, hp, max_hp}]` — one per player |
 | `players` | `[{seat, color, gold, xp, age, special_cd, dmg_dealt, queue}]` — `queue` is yours only; the opponent's is `[]` |
