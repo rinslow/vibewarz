@@ -6,19 +6,17 @@ from __future__ import annotations
 
 import random
 
-from vibewarz import Bot
-from vibewarz_games.poker.betting import legal_actions
+from vibewarz import PokerBot, PokerCheckAction, PokerState
 
 
-class PokerRandomBot(Bot):
-    game = "poker"
+class PokerRandomBot(PokerBot):
     display_name = "PokerRandomBot"
 
     def __init__(self, seed: int | None = None) -> None:
         self._rng = random.Random(seed)
 
-    def act(self, state):
-        legal = legal_actions(state, self.seat)
+    def act(self, state: PokerState):
+        legal = self.legal_actions(state)
         if not legal:
-            return {"type": "check"}  # shouldn't be reached if we got asked
+            return PokerCheckAction()  # shouldn't be reached if we got asked
         return self._rng.choice(legal)

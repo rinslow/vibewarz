@@ -1,10 +1,9 @@
 """High-level `run()` — wires a `Bot` to the protocol and prints results.
 
 Usage:
-    from vibewarz import Bot, run
-    class MyBot(Bot):
-        game = "curve"
-        def act(self, state): return {"turn": "STRAIGHT"}
+    from vibewarz import CurveAction, CurveBot, CurveState, run
+    class MyBot(CurveBot):
+        def act(self, state: CurveState): return CurveAction(turn="STRAIGHT")
     run(MyBot(), mode="practice", loop=10)
 """
 
@@ -57,15 +56,13 @@ async def _play_one_match(client: Client, bot: Bot, mode: str, bot_label: str | 
             continue
         if isinstance(msg, GameStartS2C):
             state = accumulator.on_snapshot(msg.state)
-            bot.on_start(state)
+            bot.on_start(bot._coerce_state(state))
             continue
         if isinstance(msg, TickRequestS2C):
             state = accumulator.on_delta(msg.state)
-            action_or_pair = bot.act(state)
-            if isinstance(action_or_pair, tuple):
-                action, reasoning = action_or_pair
-            else:
-                action, reasoning = action_or_pair, None
+            action, reasoning = bot._normalize_action_output(
+                bot.act(bot._coerce_state(state))
+            )
             await client.send(
                 ActionC2S(
                     id="a",

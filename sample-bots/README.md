@@ -1,12 +1,15 @@
 # Sample bots
 
-Reference bots that exercise the SDK + game APIs end-to-end. Fork these to bootstrap your own.
+Reference bots that exercise the typed SDK + game APIs end-to-end. Fork
+these to bootstrap your own.
 
 | File | Game | Strategy |
 |---|---|---|
 | [`curve_wall_avoid.py`](curve_wall_avoid.py) | curve | Drives straight unless a wall is within ~80 units of the projected head, then turns toward arena center |
 | [`blast_random.py`](blast_random.py) | blast | Uniform random over legal actions — a leaderboard floor |
 | [`poker_random.py`](poker_random.py) | poker | Uniform random over legal actions (check/fold/call/min-raise) |
+| [`vibelords_random.py`](vibelords_random.py) | vibelords | Uniform random over legal actions |
+| [`vibelords_counter.py`](vibelords_counter.py) | vibelords | Builds counters to visible enemy units |
 
 ## Try them
 

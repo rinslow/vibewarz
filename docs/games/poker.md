@@ -11,16 +11,26 @@ first).
 
 ## Actions
 
-When it's your seat's turn (`state["action_on"] == your_seat`), return
-one of:
+Use `PokerBot` with a `PokerState` callback. When it's your seat's turn
+(`state.action_on == self.seat`), return one of:
 
 ```python
-{"type": "fold"}                  # give up this hand
-{"type": "check"}                 # only legal when no bet to call
-{"type": "call"}                  # match the current bet
-{"type": "bet",   "amount": N}    # open with N (only when no current bet yet)
-{"type": "raise", "to": N}        # raise so your committed_round becomes N
+from vibewarz import (
+    PokerBetAction,
+    PokerCallAction,
+    PokerCheckAction,
+    PokerFoldAction,
+    PokerRaiseAction,
+)
+
+PokerFoldAction()          # give up this hand
+PokerCheckAction()         # only legal when no bet to call
+PokerCallAction()          # match the current bet
+PokerBetAction(amount=N)   # open with N (only when no current bet yet)
+PokerRaiseAction(to=N)     # raise so your committed_round becomes N
 ```
+
+Plain dicts like `{"type": "fold"}` are still accepted.
 
 - `bet.amount` is the **size of the opening bet**.
 - `raise.to` is the **total chips you have in for this round** after the
@@ -28,7 +38,9 @@ one of:
 
 ## State shape
 
-`state` is a plain dict (`state["key"]`).
+`state` is a `PokerState` pydantic model with attribute access
+(`state.phase`, `state.community_cards`, `state.player(self.seat)`).
+Legacy `Bot` subclasses still receive the same data as a plain dict.
 
 | Key | Meaning |
 |---|---|
@@ -46,10 +58,10 @@ one of:
 | `hand_number` | 1-indexed hand counter |
 | `history` | every action so far as `{hand, phase, seat, action}` |
 | `showdown_hands` | at showdown only: `{seat: hand_string}`. Otherwise `None`. |
-| `pot_distribution` | filled when a hand resolves: list of `{amount, winners}` |
+| `pot_distribution` | filled when a hand resolves: list of `{seat, amount}` payouts |
 | `placement` | tournament bust-out order, last-out first |
 
-Per-seat in `state["players"][i]`:
+Per-seat in `state.players[i]`:
 
 | Key | Meaning |
 |---|---|
@@ -63,10 +75,9 @@ Per-seat in `state["players"][i]`:
 ## Hidden information
 
 Each seat sees its own hole cards in
-`state["players"][your_seat]["hole_cards"]`. Other players' hole cards
-arrive as an empty list until showdown reveal — the server is
-authoritative and is the only thing that ever sees every seat's cards
-mid-hand.
+`state.player(self.seat).hole_cards`. Other players' hole cards arrive
+as an empty list until showdown reveal — the server is authoritative and
+is the only thing that ever sees every seat's cards mid-hand.
 
 The same applies to the replay viewer: a replay re-renders the engine's
 unredacted journal, but the UI can toggle a "view as seat X" mode that
@@ -83,8 +94,12 @@ client-side hides other seats' cards.
 ## Tips for a first bot
 
 1. Start tight: fold weak hands preflop, only call/raise with strong
-   ones. Use `current_bet − me["committed_round"]` to size up cost.
-2. Track `min_raise` — raising under it is illegal and gets you booted.
-3. Use `history` to model opponents over multiple hands. Bust-out order
+   ones. Use `state.to_call(self.seat)` to size up cost.
+2. Track `state.min_raise` — raising under it is illegal and gets you booted.
+3. Use `state.history` to model opponents over multiple hands. Bust-out order
    is what matters; survival is more important than max EV on a single
    hand.
+
+Use `self.legal_actions(state)` to get the current legal action dicts
+for your seat. If you need raw JSON for existing helper code, use
+`state.model_dump(mode="json")`.

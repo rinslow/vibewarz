@@ -14,7 +14,53 @@ except PackageNotFoundError:
 
 from .bot import Bot
 from .client import Client
+from .games import (
+    BlastAction,
+    BlastBot,
+    BlastState,
+    CurveAction,
+    CurveBot,
+    CurveState,
+    PokerBetAction,
+    PokerBot,
+    PokerCallAction,
+    PokerCheckAction,
+    PokerFoldAction,
+    PokerRaiseAction,
+    PokerState,
+    VibelordsAdvanceAgeAction,
+    VibelordsBot,
+    VibelordsBuildAction,
+    VibelordsNoopAction,
+    VibelordsSpecialAction,
+    VibelordsState,
+)
 from .helpers import TrailTracker
 from .runner import run
 
-__all__ = ["Bot", "Client", "TrailTracker", "run", "__version__"]
+__all__ = [
+    "BlastAction",
+    "BlastBot",
+    "BlastState",
+    "Bot",
+    "Client",
+    "CurveAction",
+    "CurveBot",
+    "CurveState",
+    "PokerBetAction",
+    "PokerBot",
+    "PokerCallAction",
+    "PokerCheckAction",
+    "PokerFoldAction",
+    "PokerRaiseAction",
+    "PokerState",
+    "TrailTracker",
+    "VibelordsAdvanceAgeAction",
+    "VibelordsBot",
+    "VibelordsBuildAction",
+    "VibelordsNoopAction",
+    "VibelordsSpecialAction",
+    "VibelordsState",
+    "run",
+    "__version__",
+]

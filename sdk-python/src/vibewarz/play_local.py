@@ -48,7 +48,12 @@ def _load_bot_class(path: Path) -> type[Bot]:
     spec.loader.exec_module(mod)
     for name in dir(mod):
         obj = getattr(mod, name)
-        if isinstance(obj, type) and issubclass(obj, Bot) and obj is not Bot:
+        if (
+            isinstance(obj, type)
+            and issubclass(obj, Bot)
+            and obj is not Bot
+            and obj.__module__ == mod.__name__
+        ):
             return obj
     raise RuntimeError(f"no Bot subclass found in {path}")
 
@@ -147,7 +152,8 @@ def play(
     state = game.initial_state(seed=seed, num_players=num_players)
 
     for bot in bots:
-        bot.on_start(state)
+        initial_view = game.snapshot_view_for(state, bot.seat)
+        bot.on_start(bot._coerce_state(initial_view))
 
     match_id = f"local_{uuid.uuid4().hex[:8]}"
     limit = max_ticks if max_ticks is not None else meta.max_ticks
@@ -176,13 +182,13 @@ def play(
             for seat in game.acting_seats(state):
                 view = game.view_for(state, seat)
                 try:
-                    out = bots[seat].act(view)
+                    out = bots[seat].act(bots[seat]._coerce_state(view))
                 except Exception as e:  # noqa: BLE001
                     if verbose:
                         print(f"seat {seat} raised in act(): {e!r}", file=sys.stderr)
                     actions[seat] = game.default_action(state, seat)
                     continue
-                action = out[0] if isinstance(out, tuple) else out
+                action, _reasoning = bots[seat]._normalize_action_output(out)
                 if not isinstance(action, dict) or not game.is_legal(state, seat, action):
                     if verbose:
                         print(

@@ -11,53 +11,56 @@ from __future__ import annotations
 
 import random
 
-from vibewarz import Bot
+from vibewarz import (
+    VibelordsAdvanceAgeAction,
+    VibelordsBot,
+    VibelordsNoopAction,
+    VibelordsSpecialAction,
+    VibelordsState,
+)
 from vibewarz_games.vibelords import units as U
-from vibewarz_games.vibelords.game import Vibelords
 
 # Inverse of the counter map: PREDATOR[t] is the unit that beats type ``t``.
 PREDATOR = {beaten: beater for beater, beaten in U.COUNTERS.items()}
 
 
-class VibelordsCounterBot(Bot):
-    game = "vibelords"
+class VibelordsCounterBot(VibelordsBot):
     display_name = "VibelordsCounterBot"
 
     def __init__(self, seed: int | None = None) -> None:
         self._rng = random.Random(seed)
-        self._engine = Vibelords()
 
-    def act(self, state):
+    def act(self, state: VibelordsState):
         seat = self.seat
-        me = state["players"][seat]
-        enemies = [u for u in state["units"] if u["owner"] != seat]
-        mid = state["lane"]["length"] / 2.0
+        me = state.player(seat)
+        enemies = [u for u in state.units if u.owner != seat]
+        mid = state.lane.length / 2.0
 
         # 1) Panic airstrike if the base is being swarmed.
-        if me["special_cd"] == 0:
+        if me.special_cd == 0:
             if seat == 0:
-                threat = [e for e in enemies if e["x"] <= mid]
+                threat = [e for e in enemies if e.x <= mid]
             else:
-                threat = [e for e in enemies if e["x"] >= mid]
+                threat = [e for e in enemies if e.x >= mid]
             if len(threat) >= 3:
-                return {"type": "special"}
+                return VibelordsSpecialAction()
 
         # 2) Tech up when there's spare XP (doesn't compete with the gold economy).
-        cost = U.age_up_cost(me["age"])
-        if cost is not None and me["xp"] >= cost + 40:
-            return {"type": "advance_age"}
+        cost = U.age_up_cost(me.age)
+        if cost is not None and me.xp >= cost + 40:
+            return VibelordsAdvanceAgeAction()
 
         # 3) Decide what to build. Counter the enemy unit nearest my base; with no
         #    read at all, mix randomly so I'm not predictable.
         if enemies:
-            front = (min if seat == 0 else max)(enemies, key=lambda e: e["x"])
-            want = PREDATOR[front["unit"]]
+            front = (min if seat == 0 else max)(enemies, key=lambda e: e.x)
+            want = PREDATOR[front.unit]
         else:
             want = self._rng.choice(U.UNIT_TYPES)
 
         builds = {
             a["unit"]: a
-            for a in self._engine.legal_actions(state, seat)
+            for a in self.legal_actions(state)
             if a["type"] == "build"
         }
         if want in builds:
@@ -65,6 +68,6 @@ class VibelordsCounterBot(Bot):
         if builds:  # can't afford the counter — take the cheapest thing I can
             return min(
                 builds.values(),
-                key=lambda a: U.unit_stats(a["unit"], me["age"])["gold_cost"],
+                key=lambda a: U.unit_stats(a["unit"], me.age)["gold_cost"],
             )
-        return {"type": "noop"}  # save up
+        return VibelordsNoopAction()  # save up

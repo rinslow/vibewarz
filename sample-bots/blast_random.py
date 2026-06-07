@@ -4,20 +4,17 @@ from __future__ import annotations
 
 import random
 
-from vibewarz import Bot
-from vibewarz_games.blast.game import Blast
+from vibewarz import BlastAction, BlastBot, BlastState
 
 
-class BlastRandomBot(Bot):
-    game = "blast"
+class BlastRandomBot(BlastBot):
     display_name = "BlastRandomBot"
 
     def __init__(self, seed: int | None = None) -> None:
         self._rng = random.Random(seed)
-        self._engine = Blast()
 
-    def act(self, state):
-        legal = self._engine.legal_actions(state, self.seat)
+    def act(self, state: BlastState):
+        legal = self.legal_actions(state)
         if not legal:
-            return {"move": "stay", "drop_bomb": False}
+            return BlastAction(move="stay", drop_bomb=False)
         return self._rng.choice(legal)

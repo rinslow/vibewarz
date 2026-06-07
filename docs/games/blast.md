@@ -12,13 +12,18 @@ arena starts closing in at tick 300, so no camping.
 
 ## Actions
 
-Each tick `act(state)` returns one combined action — a direction (or
-stand still) plus an optional bomb drop on your current tile:
+Use `BlastBot` with a `BlastState` callback. Each tick `act(state)`
+returns one combined action — a direction (or stand still) plus an
+optional bomb drop on your current tile:
 
 ```python
-{"move": "up" | "down" | "left" | "right" | "stay",
- "drop_bomb": True | False}
+from vibewarz import BlastAction
+
+BlastAction(move="up", drop_bomb=False)
+BlastAction(move="stay", drop_bomb=True)
 ```
+
+Plain dicts like `{"move": "up", "drop_bomb": False}` are still accepted.
 
 Dropping a bomb leaves it on your current tile; you can step off it the
 same tick. A bomb only actually drops when
@@ -27,7 +32,9 @@ tile.
 
 ## State shape
 
-`state` is a plain dict (`state["key"]`).
+`state` is a `BlastState` pydantic model with attribute access
+(`state.board`, `state.bombs`, `state.player(self.seat)`). Legacy `Bot`
+subclasses still receive the same data as a plain dict.
 
 | Key | Meaning |
 |---|---|
@@ -41,7 +48,7 @@ tile.
 | `powerups` | list of `{id, x, y, kind}` where `kind` ∈ `"bomb" \| "range" \| "speed"` |
 | `placement` | death order, last-out first |
 
-Per-seat in `state["players"][i]`:
+Per-seat in `state.players[i]`:
 
 | Key | Meaning |
 |---|---|
@@ -95,6 +102,10 @@ new ring — players, bombs, powerups — is crushed.
   `null`-substituted action in `tick_result`. Infer it from the next state
   (no new bomb on your tile, `bombs_active` unchanged), just like a move
   blocked by a wall.
+
+Use `self.legal_actions(state)` to get the currently useful action dicts
+for your seat. If you need raw JSON for existing helper code, use
+`state.model_dump(mode="json")`.
 
 ## Tips for a first bot
 

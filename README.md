@@ -35,12 +35,11 @@ Write your own:
 
 ```python
 # my_bot.py
-from vibewarz import Bot
+from vibewarz import CurveAction, CurveBot, CurveState
 
-class MyBot(Bot):
-    game = "curve"
-    def act(self, state):
-        return {"turn": "STRAIGHT"}
+class MyBot(CurveBot):
+    def act(self, state: CurveState):
+        return CurveAction(turn="STRAIGHT")
 ```
 
 ```bash
@@ -65,7 +64,7 @@ Ready to climb the ladder?
 
 The SDK defaults to the production arena (`wss://api.vibewarz.com/ws`). Override with `VIBEWARZ_API_URL` only when pointing at a local or staging server.
 
-See [`docs/QUICKSTART.md`](docs/QUICKSTART.md) for the full walkthrough and [`docs/PROTOCOL.md`](docs/PROTOCOL.md) for the wire spec.
+See [`docs/QUICKSTART.md`](docs/QUICKSTART.md) for the full walkthrough, [`docs/WRITING_A_BOT.md`](docs/WRITING_A_BOT.md) for the bot API, and [`docs/PROTOCOL.md`](docs/PROTOCOL.md) for the wire spec.
 
 ## Develop on this repo
 

@@ -76,14 +76,24 @@ You start with **50 gold** (enough for one Stone unit immediately) and
 
 ## Actions
 
-`act(state)` returns **one** command per tick:
+Use `VibelordsBot` with a `VibelordsState` callback. `act(state)`
+returns **one** command per tick:
 
 ```python
-{"type": "build", "unit": "pike" | "cavalry" | "archer"}  # queue a current-age unit
-{"type": "advance_age"}                                    # if xp >= cost and age < 3
-{"type": "special"}                                        # airstrike, if off cooldown
-{"type": "noop"}                                           # bank resources
+from vibewarz import (
+    VibelordsAdvanceAgeAction,
+    VibelordsBuildAction,
+    VibelordsNoopAction,
+    VibelordsSpecialAction,
+)
+
+VibelordsBuildAction(unit="pike")  # queue a current-age unit
+VibelordsAdvanceAgeAction()        # if xp >= cost and age < 3
+VibelordsSpecialAction()           # airstrike, if off cooldown
+VibelordsNoopAction()              # bank resources
 ```
+
+Plain dicts like `{"type": "build", "unit": "pike"}` are still accepted.
 
 - **build** deducts the unit's gold cost and appends it to your **hidden
   build queue** with `ready_tick = tick + build_ticks`. It deploys from
@@ -96,8 +106,7 @@ You start with **50 gold** (enough for one Stone unit immediately) and
 
 ## Hidden information
 
-`view_for(state, seat)` is the unsolvability lever (the same hook poker
-uses):
+Your `VibelordsState` is already redacted for your seat:
 
 - your **own** `queue` is visible; the **opponent's `queue` is redacted
   to `[]`**.
@@ -126,7 +135,9 @@ deploying before it appears?"*
 
 ## State shape
 
-`state` is a plain dict.
+`state` is a `VibelordsState` pydantic model with attribute access
+(`state.units`, `state.player(self.seat)`, `state.base(self.seat)`).
+Legacy `Bot` subclasses still receive the same data as a plain dict.
 
 | Key | Meaning |
 |---|---|
@@ -137,6 +148,10 @@ deploying before it appears?"*
 | `units` | `[{id, owner, unit, age, x, hp, max_hp, atk_cd}]` — every unit on the lane (public) |
 | `fx` | transient per-tick render events (`hit`/`arrow`/`death`/`airstrike`); ignore in bots |
 | `placement` | finishing order as seats are eliminated |
+
+Use `self.legal_actions(state)` to get the currently affordable /
+available action dicts for your seat. If you need raw JSON for existing
+helper code, use `state.model_dump(mode="json")`.
 
 ## Reference bots
 

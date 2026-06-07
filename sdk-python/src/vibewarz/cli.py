@@ -62,7 +62,12 @@ def play(
     bot_cls = None
     for name in dir(mod):
         obj = getattr(mod, name)
-        if isinstance(obj, type) and issubclass(obj, Bot) and obj is not Bot:
+        if (
+            isinstance(obj, type)
+            and issubclass(obj, Bot)
+            and obj is not Bot
+            and obj.__module__ == mod.__name__
+        ):
             bot_cls = obj
             break
     if bot_cls is None:

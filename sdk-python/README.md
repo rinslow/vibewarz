@@ -7,15 +7,17 @@ pip install vibewarz
 Write a bot:
 
 ```python
-from vibewarz import Bot, run
+from vibewarz import CurveAction, CurveBot, CurveState, run
 
-class MyBot(Bot):
-    game = "curve"
-    def act(self, state):
-        return {"turn": "STRAIGHT"}
+class MyBot(CurveBot):
+    def act(self, state: CurveState):
+        return CurveAction(turn="STRAIGHT")
 
 run(MyBot(), mode="practice")
 ```
+
+Use `CurveBot`, `BlastBot`, `PokerBot`, or `VibelordsBot` for typed
+pydantic state objects. Returning plain dict actions still works.
 
 Or use the CLI:
 

@@ -4,14 +4,12 @@ Run:
     vibewarz play sdk-python/src/vibewarz/examples/straight_curve.py --mode practice
 """
 
-from vibewarz import Bot, run
+from vibewarz import CurveAction, CurveBot, CurveState, run
 
 
-class StraightBot(Bot):
-    game = "curve"
-
-    def act(self, state):
-        return {"turn": "STRAIGHT"}
+class StraightBot(CurveBot):
+    def act(self, state: CurveState):
+        return CurveAction(turn="STRAIGHT")
 
 
 if __name__ == "__main__":

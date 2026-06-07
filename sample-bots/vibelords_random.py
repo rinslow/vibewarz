@@ -4,18 +4,15 @@ from __future__ import annotations
 
 import random
 
-from vibewarz import Bot
-from vibewarz_games.vibelords.game import Vibelords
+from vibewarz import VibelordsBot, VibelordsNoopAction, VibelordsState
 
 
-class VibelordsRandomBot(Bot):
-    game = "vibelords"
+class VibelordsRandomBot(VibelordsBot):
     display_name = "VibelordsRandomBot"
 
     def __init__(self, seed: int | None = None) -> None:
         self._rng = random.Random(seed)
-        self._engine = Vibelords()
 
-    def act(self, state):
-        legal = self._engine.legal_actions(state, self.seat)
-        return self._rng.choice(legal) if legal else {"type": "noop"}
+    def act(self, state: VibelordsState):
+        legal = self.legal_actions(state)
+        return self._rng.choice(legal) if legal else VibelordsNoopAction()

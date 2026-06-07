@@ -26,26 +26,24 @@ You should see output like:
 local_a1b2c3d4: placement=[3, 0, 1, 2] reason=elimination ticks=210
 ```
 
-`placement` is winner → loser by seat index. Curve needs 4–8 players;
-poker and blast go 2+.
+`placement` is winner → loser by seat index. Curve needs exactly 4
+players; poker and blast go 2+; Vibelords is heads-up.
 
 ## Write your own bot
 
 Save this as `my_bot.py`:
 
 ```python
-from vibewarz import Bot
+from vibewarz import CurveAction, CurveBot, CurveState
 
-class MyCurveBot(Bot):
-    game = "curve"
+class MyCurveBot(CurveBot):
+    def act(self, state: CurveState):
+        me = state.player(self.seat)
+        if not me.alive:
+            return CurveAction(turn="STRAIGHT")
 
-    def act(self, state):
-        # state is a dict — full schema in docs/PROTOCOL.md
-        me = next(p for p in state["players"] if p["seat"] == self.seat)
-        if not me["alive"]:
-            return {"turn": "STRAIGHT"}
         # always turn right
-        return {"turn": "RIGHT"}
+        return CurveAction(turn="RIGHT")
 ```
 
 Pit it against `wall_avoid`:
@@ -60,19 +58,27 @@ vibewarz play-local --game curve \
 
 ## act() return values
 
-- A dict: `{"turn": "LEFT"}` — your action this tick
-- A tuple `(action, reasoning)`: same, plus a free-form string shown in replays
+- A pydantic action model: `CurveAction(turn="LEFT")`
+- A dict: `{"turn": "LEFT"}` — still supported for compatibility
+- A tuple `(action, reasoning)`: same action, plus a free-form string shown in replays
 - Anything else, or an illegal action: the engine substitutes `default_action(state, seat)` (for Curve, `{"turn": "STRAIGHT"}`). Substitution does NOT eliminate you; only illegal moves on the live server do (locally we substitute and warn with `--verbose`).
 
 ## State shape per game
 
-Each game has its own action format and state dict. Full reference per game:
+Each game has its own typed pydantic state model and action format. Full
+reference per game:
 
 - [Curve](games/curve.md) — turn LEFT/STRAIGHT/RIGHT, avoid walls and trails
 - [Blast](games/blast.md) — grid movement + bomb drops, dodge flames
 - [Poker](games/poker.md) — fold/check/call/bet/raise with hidden hole cards
+- [Vibelords](games/vibelords.md) — hidden queue lane RTS
 
-For local play the `state` your bot receives is the same dict the server's `Game.view_for(state, seat)` returns. For poker it's redacted (you see only your hole cards); for Curve and Blast it's the full public state. The wire-format envelope around it lives in [PROTOCOL.md](PROTOCOL.md).
+For typed bots, `state` is a pydantic model such as `CurveState` with
+attribute access (`state.players`, `state.player(self.seat)`). For legacy
+`Bot` subclasses, `state` remains the raw dict. Hidden-information games
+are redacted before your bot sees them: Poker shows only your hole cards,
+and Vibelords hides the opponent build queue. The wire-format envelope
+around the JSON state lives in [PROTOCOL.md](PROTOCOL.md).
 
 ## Submit to the live arena
 
@@ -95,7 +101,8 @@ ELO changes appear on your profile at https://vibewarz.com/u/&lt;your-handle&gt;
 
 ## Next
 
-- [games/curve.md](games/curve.md), [games/blast.md](games/blast.md), [games/poker.md](games/poker.md) — per-game reference
+- [games/curve.md](games/curve.md), [games/blast.md](games/blast.md), [games/poker.md](games/poker.md), [games/vibelords.md](games/vibelords.md) — per-game reference
+- [WRITING_A_BOT.md](WRITING_A_BOT.md) — typed bot lifecycle and API
 - [PROTOCOL.md](PROTOCOL.md) — every message shape on the wire
 - [WRITING_A_GAME.md](WRITING_A_GAME.md) — add a new game to vibewarz
 - [vibewarz.com/leaderboards](https://vibewarz.com/leaderboards) — what to beat
