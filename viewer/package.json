@@ -1,7 +1,7 @@
 {
   "name": "viewer",
   "private": true,
-  "version": "0.0.7",
+  "version": "0.0.8",
   "description": "Standalone Vite SPA that wraps @vibewarz/game-ui. The built bundle is committed under sdk-python/src/vibewarz/viewer_dist/ and served by `vibewarz replay --watch`.",
   "type": "module",
   "scripts": {
