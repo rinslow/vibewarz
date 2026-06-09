@@ -54,6 +54,65 @@
   justify-content: center;
 }
 
+/* Aspect frame — a fixed-ratio stage that meet-fits a game board (see
+   frame.tsx). Reused across games; each board renders natively at one ratio. */
+.vw-frame {
+  position: relative;
+  max-width: 100%;
+  width: auto;
+  max-height: calc(100vh - 9rem);
+  margin-inline: auto;
+  background-color: var(--vw-color-bg);
+  border: 1px solid var(--vw-color-border);
+  border-radius: var(--vw-radius);
+  overflow: hidden;
+}
+
+.vw-frame--16x9 {
+  aspect-ratio: 16 / 9;
+}
+
+.vw-frame--9x16 {
+  aspect-ratio: 9 / 16;
+}
+
+.vw-frame--1x1 {
+  aspect-ratio: 1 / 1;
+}
+
+.vw-frame__stage {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* The board declares its own aspect-ratio and fills the binding axis (width for
+   the wide 16:9 boards); flex centers it on the other axis, letterboxing the
+   slack onto the frame's branded backdrop. */
+.vw-frame__stage > * {
+  max-width: 100%;
+  max-height: 100%;
+}
+
+.vw-frame__brand {
+  position: absolute;
+  right: 0.6rem;
+  bottom: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  pointer-events: none;
+}
+
+.vw-frame__result {
+  font-family: var(--vw-font-mono);
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--vw-color-text);
+}
+
 .vw-replay__empty {
   border: 1px solid var(--vw-color-border);
   border-radius: var(--vw-radius);
@@ -192,28 +251,32 @@
 /* Vibelords board */
 
 .vw-vibelords__board {
-  border: 1px solid var(--vw-color-border);
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
   border-radius: var(--vw-radius);
   overflow: hidden;
   background-color: var(--vw-color-bg);
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  padding: 0.75rem;
 }
 
 .vw-vibelords__svg {
   width: 100%;
-  height: auto;
-  border-radius: 6px;
+  height: 100%;
   display: block;
 }
 
+/* HUD floats over the sky at the top of the board so the whole board is a
+   self-contained 16:9 surface (no card stacked above it). */
 .vw-vibelords__hud {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 0.5rem;
-  width: 100%;
+  padding: 0.6rem;
+  pointer-events: none;
 }
 
 .vw-vibelords__hud-card {

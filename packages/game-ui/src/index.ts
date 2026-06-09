@@ -37,6 +37,7 @@ export {
 } from "./poker/types";
 export { PlaybackControls, usePlayback } from "./controls";
 export type { PlaybackState } from "./controls";
+export { ReplayFrame, AspectSelect, ASPECT_RATIOS, type AspectRatio } from "./frame";
 export {
   detectGameId,
   type RawEvent,

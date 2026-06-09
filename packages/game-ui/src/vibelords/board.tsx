@@ -15,12 +15,35 @@ import {
 } from "./types";
 
 // ── battlefield geometry (SVG units) ─────────────────────────────────────────
+// The board renders natively at 16:9 (920×518) so a default replay is already a
+// social-ready clip. Everything (keeps, units, HP bars) anchors to GROUND_Y and
+// the ground band is the fixed slice below it, so the extra height over the old
+// 360-tall board is sky headroom — which also hosts the HUD overlay.
 const W = 920;
-const H = 360;
+const H = 518; // 920:518 ≈ 16:9
+const GROUND_BAND = 98; // ground slice below the horizon (unchanged)
 const FIELD_L = 80; // x where lane position 0 maps (just outside the left keep)
 const FIELD_R = W - 80; // x where lane position `length` maps
-const GROUND_Y = 262; // top of the ground band; unit feet rest here
+const GROUND_Y = H - GROUND_BAND; // top of the ground band; unit feet rest here
 const KEEP_HALF = 40;
+// Units and keeps render this much larger than their base art size, to fill the
+// taller 16:9 field and read better in shareable clips. Applied at the feet so
+// sprites/keeps grow upward and stay planted on the ground line.
+const ASSET_SCALE = 1.8;
+// Highest drawn point of each age's keep (raw units above the ground line):
+// stone palisade, castle pennant, factory smokestack, future emitter orb. Used
+// to float each base's HP bar just above its own silhouette rather than at a
+// single height tuned for the tallest keep.
+const KEEP_TOP_BY_AGE = [52, 122, 86, 121];
+
+// Fixed star field [xFrac, yFrac (of sky), radius] scattered across the upper
+// sky so the 16:9 headroom has some atmosphere. Avoids the moon's quadrant.
+const SKY_STARS: ReadonlyArray<readonly [number, number, number]> = [
+  [0.08, 0.18, 1.1], [0.15, 0.42, 0.8], [0.22, 0.12, 0.9], [0.31, 0.3, 1.2],
+  [0.39, 0.16, 0.7], [0.46, 0.4, 1.0], [0.53, 0.22, 0.85], [0.6, 0.35, 0.7],
+  [0.12, 0.6, 0.8], [0.27, 0.52, 0.7], [0.35, 0.66, 0.9], [0.5, 0.58, 0.8],
+  [0.66, 0.5, 0.75], [0.7, 0.18, 0.9], [0.9, 0.46, 0.8], [0.95, 0.2, 0.7],
+];
 
 // Smooth-march duration — just under the 100ms tick so units glide between
 // frames and arrive before the next tick resolves (same trick as Blast).
@@ -140,6 +163,7 @@ export function VibelordsBoard({
               age={player?.age ?? 0}
               color={player?.color ?? "#888"}
               cx={b.seat === 0 ? FIELD_L - 36 : FIELD_R + 36}
+              scale={ASSET_SCALE}
             />
           );
         })}
@@ -181,6 +205,22 @@ function Backdrop({ topAge }: { topAge: number }) {
         </linearGradient>
       </defs>
       <rect x={0} y={0} width={W} height={GROUND_Y} fill="url(#aw-sky)" />
+      {/* atmosphere — moon + stars fill the sky headroom so the 16:9 framing
+          reads as intentional rather than empty. Fixed positions so nothing
+          jitters between ticks. */}
+      {SKY_STARS.map(([fx, fy, r], i) => (
+        <circle
+          key={`star-${i}`}
+          cx={fx * W}
+          cy={fy * GROUND_Y}
+          r={r}
+          fill="#cdd3f0"
+          opacity={0.55}
+        />
+      ))}
+      <circle cx={W * 0.8} cy={GROUND_Y * 0.26} r={34} fill="#1c1b2e" opacity={0.5} />
+      <circle cx={W * 0.8} cy={GROUND_Y * 0.26} r={22} fill="#e8e4f5" opacity={0.92} />
+      <circle cx={W * 0.8 - 7} cy={GROUND_Y * 0.26 - 4} r={18} fill="#cfd6ef" opacity={0.5} />
       {/* distant parallax hills */}
       <path
         d={`M0 ${GROUND_Y} Q ${W * 0.2} ${GROUND_Y - 60} ${W * 0.42} ${GROUND_Y - 18}
@@ -218,15 +258,22 @@ function Keep({
   age,
   color,
   cx,
+  scale = 1,
 }: {
   base: VibelordsBase;
   age: number;
   color: string;
   cx: number;
+  // Visual size multiplier for the building (the live board enlarges keeps to
+  // fill the field; the asset-sheet gallery renders them at base scale = 1).
+  scale?: number;
 }) {
   const dead = base.hp <= 0;
   const hpFrac = Math.max(0, Math.min(1, base.hp / base.max_hp));
-  const hpBarY = GROUND_Y - 126; // clears the tallest fortress (castle turret / future spire)
+  // Float the bar just above this keep's own (scaled) silhouette + a small gap,
+  // so it hugs the building at any age and any ASSET_SCALE.
+  const keepTop = KEEP_TOP_BY_AGE[Math.max(0, Math.min(3, age))];
+  const hpBarY = GROUND_Y - keepTop * scale - 15;
   return (
     <g opacity={dead ? 0.4 : 1}>
       {/* base HP bar floating above the keep */}
@@ -252,16 +299,22 @@ function Keep({
         </text>
       </g>
 
-      {/* shadow */}
-      <ellipse cx={cx} cy={GROUND_Y + 3} rx={KEEP_HALF + 8} ry={6} fill="#00000066" />
+      {/* building + shadow, enlarged about the ground anchor so the keep grows
+          upward and stays planted (the HP bar above stays at UI scale). */}
+      <g
+        transform={`translate(${cx} ${GROUND_Y}) scale(${scale}) translate(${-cx} ${-GROUND_Y})`}
+      >
+        {/* shadow */}
+        <ellipse cx={cx} cy={GROUND_Y + 3} rx={KEEP_HALF + 8} ry={6} fill="#00000066" />
 
-      {/* each age has its own architecture — a different silhouette, not just a
-          recoloured wall: a primitive palisade, a stone castle, a brick
-          factory-fort, and a glowing energy citadel. */}
-      {age <= 0 && <StoneFort cx={cx} color={color} />}
-      {age === 1 && <CastleKeep cx={cx} color={color} />}
-      {age === 2 && <Factory cx={cx} color={color} />}
-      {age >= 3 && <FutureCitadel cx={cx} color={color} />}
+        {/* each age has its own architecture — a different silhouette, not just a
+            recoloured wall: a primitive palisade, a stone castle, a brick
+            factory-fort, and a glowing energy citadel. */}
+        {age <= 0 && <StoneFort cx={cx} color={color} />}
+        {age === 1 && <CastleKeep cx={cx} color={color} />}
+        {age === 2 && <Factory cx={cx} color={color} />}
+        {age >= 3 && <FutureCitadel cx={cx} color={color} />}
+      </g>
     </g>
   );
 }
@@ -510,7 +563,7 @@ function UnitSprite({
   const a = Math.max(0, Math.min(3, unit.age));
   const mode: AnimMode = unit.atk_cd > 0 ? "attack" : "move";
   // Later ages are physically larger — a Future mech towers over a caveman.
-  const s = SIZE_BY_AGE[a];
+  const s = SIZE_BY_AGE[a] * ASSET_SCALE;
   // light vertical stagger so massed armies read with depth
   const lane = hashId(unit.id) % 3;
   const y = GROUND_Y + 2 + lane * 9;
@@ -985,7 +1038,7 @@ function Fx({
     const x1 = px(fx.x1);
     const age = fx.age ?? 1;
     const dir = x1 >= x0 ? 1 : -1;
-    const y = fireY ?? GROUND_Y - (MUZZLE_BODY_Y[age] ?? 16) * (SIZE_BY_AGE[age] ?? 1);
+    const y = fireY ?? GROUND_Y - (MUZZLE_BODY_Y[age] ?? 16) * (SIZE_BY_AGE[age] ?? 1) * ASSET_SCALE;
     if (age <= 0) {
       // Slinger — a high lob + a tumbling stone landing at the target
       const midX = (x0 + x1) / 2;
@@ -1414,9 +1467,9 @@ function KeepCell({ age }: { age: number }) {
   return (
     <figure style={{ ...cellBox, width: 200 }}>
       <svg
-        viewBox={`0 128 140 154`}
+        viewBox={`0 ${GROUND_Y - 148} 140 168`}
         width={180}
-        height={198}
+        height={216}
         style={{ display: "block", margin: "0 auto" }}
       >
         <line x1={0} y1={GROUND_Y} x2={140} y2={GROUND_Y} stroke="#2c2a22" strokeWidth={1.5} />
