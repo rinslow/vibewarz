@@ -1,6 +1,6 @@
 {
   "name": "@vibewarz/game-ui",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "description": "React components for rendering vibewarz games — replay viewers (Curve, Poker, Blast) and the shared presentational boards used by both replays and live play.",
   "license": "MIT",
   "author": "OmriGanor",
