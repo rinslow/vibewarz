@@ -85,6 +85,51 @@ export function usePlayback(
   return { frame, setFrame, playing, setPlaying, speed, setSpeed };
 }
 
+// Fullscreens the replay root (frame + controls together, so the scrubber and
+// ratio selector stay usable) via the Fullscreen API. The element keeps its
+// chosen aspect frame — `.vw-replay:fullscreen` CSS meet-fits it to the screen.
+function FullscreenButton() {
+  const [active, setActive] = useState(false);
+  const ref = useRef<HTMLButtonElement>(null);
+
+  const toggle = () => {
+    if (document.fullscreenElement) {
+      void document.exitFullscreen();
+      return;
+    }
+    const root = ref.current?.closest(".vw-replay");
+    if (root instanceof HTMLElement) void root.requestFullscreen?.();
+  };
+
+  useEffect(() => {
+    const sync = () => setActive(!!document.fullscreenElement);
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target;
+      if (t instanceof HTMLElement && /^(INPUT|SELECT|TEXTAREA)$/.test(t.tagName)) return;
+      if (e.key === "f") toggle();
+    };
+    document.addEventListener("fullscreenchange", sync);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("fullscreenchange", sync);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, []);
+
+  return (
+    <button
+      ref={ref}
+      type="button"
+      onClick={toggle}
+      className="vw-replay__btn-fullscreen"
+      title={active ? "exit fullscreen (f)" : "fullscreen (f)"}
+      aria-label={active ? "exit fullscreen" : "enter fullscreen"}
+    >
+      {active ? "⛶ exit" : "⛶"}
+    </button>
+  );
+}
+
 export function PlaybackControls({
   totalFrames,
   currentTick,
@@ -145,6 +190,7 @@ export function PlaybackControls({
         ))}
       </select>
       {extra}
+      <FullscreenButton />
     </div>
   );
 }

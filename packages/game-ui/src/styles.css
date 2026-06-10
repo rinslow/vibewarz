@@ -415,6 +415,62 @@
   color: var(--vw-color-text);
 }
 
+.vw-replay__btn-fullscreen {
+  background: none;
+  border: 0;
+  font-family: var(--vw-font-mono);
+  font-size: 0.875rem;
+  color: var(--vw-color-text-muted);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.vw-replay__btn-fullscreen:hover {
+  color: var(--vw-color-text);
+}
+
+/* Fullscreen mode — the replay root is the fullscreened element (frame +
+   controls together, so playback stays usable). The frame keeps the CHOSEN
+   aspect ratio: its aspect-ratio + max constraints meet-fit it to the screen,
+   centered on the dark backdrop, bands where the screen ratio differs. */
+.vw-replay:fullscreen {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  background-color: var(--vw-color-bg);
+  padding: 1rem 1.5rem;
+  overflow: hidden;
+}
+
+.vw-replay:fullscreen::backdrop {
+  background-color: #0a0a0b;
+}
+
+/* Meet-fit the frame into the screen minus the controls bar. As a flex item
+   its auto width would collapse to fit-content (the stage is absolutely
+   positioned), so size it explicitly per ratio: full height-budget width,
+   capped at the screen edge — aspect-ratio derives the rest either way. */
+.vw-replay:fullscreen .vw-frame {
+  max-height: none;
+}
+
+.vw-replay:fullscreen .vw-frame--16x9 {
+  width: min(100%, calc((100vh - 7.5rem) * 16 / 9));
+}
+
+.vw-replay:fullscreen .vw-frame--9x16 {
+  width: min(100%, calc((100vh - 7.5rem) * 9 / 16));
+}
+
+.vw-replay:fullscreen .vw-frame--1x1 {
+  width: min(100%, calc(100vh - 7.5rem));
+}
+
+.vw-replay:fullscreen .vw-replay__controls {
+  width: min(100%, 72rem);
+  margin-inline: auto;
+}
+
 .vw-replay__scrubber {
   flex: 1;
 }
