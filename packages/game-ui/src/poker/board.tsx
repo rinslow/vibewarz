@@ -88,6 +88,8 @@ export function PokerBoard({
   mySeat,
   seatInfo,
   revealAll = false,
+  rotate90 = false,
+  emphasizeMe = true,
 }: {
   state: PokerState | null;
   mySeat: number | null;
@@ -96,6 +98,13 @@ export function PokerBoard({
   // showdown flag. Live play always leaves this false so hidden info stays
   // hidden.
   revealAll?: boolean;
+  // Enlarge the `mySeat` plate + cards (the live "this is you" treatment). Off
+  // in replays so picking a POV doesn't resize that seat.
+  emphasizeMe?: boolean;
+  // Portrait (9:16): spin the whole landscape table 90° to fill the tall frame,
+  // and counter-rotate the readable bits (cards/plates/pot) back to upright —
+  // they end up smaller. The felt/oval turns; the content stays legible.
+  rotate90?: boolean;
 }) {
   const handleBySeat = new Map(seatInfo?.map((s) => [s.seat, s]) ?? []);
   if (!state) {
@@ -118,142 +127,181 @@ export function PokerBoard({
   const positions = TABLE_POSITIONS[N] ?? TABLE_POSITIONS[6];
   const anchor = mySeat ?? 0;
   const showdown = state.showdown_hands !== null || revealAll;
+  // Portrait: counter-rotate every readable element so it stays upright while
+  // the felt/oval spins. Cards shrink a notch to fit the narrower portrait.
+  const cr = rotate90 ? " rotate(-90deg)" : "";
 
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-      {/* Header strip */}
+  // The landscape (16:9) table, identical in both orientations. In portrait it
+  // gets spun 90° as a unit by the wrapper below.
+  const table = (
+    <div
+      style={{
+        position: "absolute",
+        top: "8%",
+        bottom: "5%",
+        left: "5%",
+        right: "5%",
+        background:
+          "radial-gradient(ellipse at center, #1f5840 0%, #0e3b27 65%, #082519 100%)",
+        borderRadius: "16% / 26%",
+        border: "10px solid",
+        borderImage:
+          "linear-gradient(135deg, #5b3a20 0%, #8a6233 35%, #3f2613 100%) 1",
+        boxShadow:
+          "inset 0 0 80px rgba(0,0,0,0.55), 0 12px 40px rgba(0,0,0,0.55)",
+        overflow: "visible",
+      }}
+    >
+      {/* Inner felt highlight to give the table some depth */}
+      <div
+        aria-hidden
+        style={{
+          position: "absolute",
+          inset: 12,
+          pointerEvents: "none",
+          borderRadius: "16% / 26%",
+          boxShadow:
+            "inset 0 0 0 1px rgba(255,255,255,0.04), inset 0 0 30px rgba(255,255,255,0.02)",
+        }}
+      />
+
+      {/* Community cards + pot — center of table */}
       <div
         style={{
+          position: "absolute",
           display: "flex",
-          alignItems: "baseline",
-          flexWrap: "wrap",
-          columnGap: "1.5rem",
-          rowGap: "0.25rem",
-          padding: "0 0.5rem",
+          flexDirection: "column",
+          alignItems: "center",
+          gap: "0.5rem",
+          top: "44%",
+          left: "50%",
+          transform: `translate(-50%, -50%)${cr}`,
         }}
+      >
+        <div
+          style={{
+            fontFamily: MONO,
+            fontSize: 10,
+            textTransform: "uppercase",
+            letterSpacing: "0.22em",
+            color: "#9ca3af",
+          }}
+        >
+          pot
+        </div>
+        <div style={{ fontFamily: MONO, fontSize: 20, fontWeight: 600, color: "#fff" }}>
+          {state.pot}
+        </div>
+        <div style={{ marginTop: 4 }}>
+          <CardRow cards={state.community_cards} empty={5} size={rotate90 ? "sm" : "md"} />
+        </div>
+      </div>
+
+      {/* Per-seat positioning */}
+      {state.players.map((player) => {
+        const offset = (player.seat - anchor + N) % N;
+        const pos = positions[offset];
+        const info = handleBySeat.get(player.seat);
+        return (
+          <Seat
+            key={player.seat}
+            player={player}
+            info={info}
+            isMe={player.seat === mySeat}
+            isButton={player.seat === state.button}
+            isActor={player.seat === state.action_on}
+            showdown={showdown}
+            x={pos.x}
+            y={pos.y}
+            counterRotate={cr}
+            compact={rotate90}
+            emphasizeMe={emphasizeMe}
+          />
+        );
+      })}
+
+      {/* Showdown reveal panel */}
+      {state.showdown_hands && (
+        <div
+          style={{
+            position: "absolute",
+            fontFamily: MONO,
+            fontSize: 10,
+            color: "#cbd5e1",
+            background: "rgba(0,0,0,0.55)",
+            borderRadius: 4,
+            padding: "4px 8px",
+            display: "flex",
+            flexDirection: "column",
+            gap: 2,
+            top: "8px",
+            left: "50%",
+            transform: `translateX(-50%)${cr}`,
+          }}
+        >
+          {Object.entries(state.showdown_hands).map(([seat, hand]) => (
+            <div key={seat}>
+              <span style={{ color: "var(--vw-color-text-muted)" }}>seat {seat} · </span>
+              <span style={{ color: "#fff" }}>{hand}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
+  return (
+    // Self-contained board so it fills the ReplayFrame natively (16:9), or 9:16
+    // in portrait where the whole table is spun 90° to fill the tall frame. The
+    // felt is inset so seat plates / dealer button / bet chips stay inside the
+    // box and aren't clipped by the frame's overflow:hidden. Header sits in the
+    // empty top corners (upright).
+    <div
+      className="vw-poker__board"
+      style={{
+        position: "relative",
+        width: "100%",
+        aspectRatio: rotate90 ? "9 / 16" : "16 / 9",
+      }}
+    >
+      {/* Header — top corners */}
+      <div
+        style={{ position: "absolute", top: 6, left: 12, display: "flex", gap: "1rem", alignItems: "baseline", zIndex: 2 }}
       >
         <span style={{ ...headerCell, color: "var(--vw-color-accent)" }}>
           hand #{state.hand_number}
         </span>
         <span style={headerCell}>{PHASE_LABEL[state.phase] ?? state.phase}</span>
+      </div>
+      <div
+        style={{ position: "absolute", top: 6, right: 12, display: "flex", gap: "1rem", alignItems: "baseline", zIndex: 2 }}
+      >
         <span style={headerCell}>
           blinds {state.small_blind}/{state.big_blind}
         </span>
-        <span style={{ ...headerCell, marginLeft: "auto" }}>
-          level {state.level_idx ?? 0}
-        </span>
+        <span style={headerCell}>level {state.level_idx ?? 0}</span>
       </div>
 
-      {/* The felt */}
-      <div
-        style={{
-          position: "relative",
-          width: "100%",
-          aspectRatio: "16 / 10",
-          background:
-            "radial-gradient(ellipse at center, #1f5840 0%, #0e3b27 60%, #082519 100%)",
-          borderRadius: "50% / 32%",
-          border: "10px solid",
-          borderImage:
-            "linear-gradient(135deg, #5b3a20 0%, #8a6233 35%, #3f2613 100%) 1",
-          boxShadow:
-            "inset 0 0 80px rgba(0,0,0,0.55), 0 12px 40px rgba(0,0,0,0.55)",
-          overflow: "visible",
-        }}
-      >
-        {/* Inner felt highlight to give the table some depth */}
-        <div
-          aria-hidden
-          style={{
-            position: "absolute",
-            inset: 12,
-            pointerEvents: "none",
-            borderRadius: "50% / 32%",
-            boxShadow:
-              "inset 0 0 0 1px rgba(255,255,255,0.04), inset 0 0 30px rgba(255,255,255,0.02)",
-          }}
-        />
-
-        {/* Community cards + pot — center of table */}
+      {rotate90 ? (
+        // A 16:9 table sized so that, spun 90°, its bounding box fills this 9:16
+        // board (width 16/9 of the board width = the board height; height = the
+        // board width). transform-origin center keeps it centered.
         <div
           style={{
             position: "absolute",
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            gap: "0.5rem",
-            top: "44%",
+            top: "50%",
             left: "50%",
-            transform: "translate(-50%, -50%)",
+            width: "177.78%",
+            aspectRatio: "16 / 9",
+            transform: "translate(-50%, -50%) rotate(90deg)",
+            transformOrigin: "center",
           }}
         >
-          <div
-            style={{
-              fontFamily: MONO,
-              fontSize: 10,
-              textTransform: "uppercase",
-              letterSpacing: "0.22em",
-              color: "#9ca3af",
-            }}
-          >
-            pot
-          </div>
-          <div style={{ fontFamily: MONO, fontSize: 20, fontWeight: 600, color: "#fff" }}>
-            {state.pot}
-          </div>
-          <div style={{ marginTop: 4 }}>
-            <CardRow cards={state.community_cards} empty={5} size="md" />
-          </div>
+          {table}
         </div>
-
-        {/* Per-seat positioning */}
-        {state.players.map((player) => {
-          const offset = (player.seat - anchor + N) % N;
-          const pos = positions[offset];
-          const info = handleBySeat.get(player.seat);
-          return (
-            <Seat
-              key={player.seat}
-              player={player}
-              info={info}
-              isMe={player.seat === mySeat}
-              isButton={player.seat === state.button}
-              isActor={player.seat === state.action_on}
-              showdown={showdown}
-              x={pos.x}
-              y={pos.y}
-            />
-          );
-        })}
-
-        {/* Showdown reveal panel */}
-        {state.showdown_hands && (
-          <div
-            style={{
-              position: "absolute",
-              fontFamily: MONO,
-              fontSize: 10,
-              color: "#cbd5e1",
-              background: "rgba(0,0,0,0.55)",
-              borderRadius: 4,
-              padding: "4px 8px",
-              display: "flex",
-              flexDirection: "column",
-              gap: 2,
-              top: "8px",
-              left: "50%",
-              transform: "translateX(-50%)",
-            }}
-          >
-            {Object.entries(state.showdown_hands).map(([seat, hand]) => (
-              <div key={seat}>
-                <span style={{ color: "var(--vw-color-text-muted)" }}>seat {seat} · </span>
-                <span style={{ color: "#fff" }}>{hand}</span>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+      ) : (
+        table
+      )}
     </div>
   );
 }
@@ -267,6 +315,9 @@ function Seat({
   showdown,
   x,
   y,
+  counterRotate = "",
+  compact = false,
+  emphasizeMe = true,
 }: {
   player: PokerPlayer;
   info: SeatInfo | undefined;
@@ -276,13 +327,23 @@ function Seat({
   showdown: boolean;
   x: number;
   y: number;
+  // Appended to each readable element's transform to keep it upright while the
+  // table is spun in portrait (e.g. " rotate(-90deg)").
+  counterRotate?: string;
+  // Portrait: shrink cards a notch to fit the narrower frame.
+  compact?: boolean;
+  // Enlarge this seat when it's "me" (live treatment); off in replays.
+  emphasizeMe?: boolean;
 }) {
+  // "me" still reveals cards + gets the YOU label/tint, but only grows in size
+  // when emphasizeMe is on (live play) — so picking a replay POV doesn't resize.
+  const meBig = isMe && emphasizeMe;
   const cardsVisible = isMe || showdown;
   const folded = player.folded;
   const cards = cardsVisible ? player.hole_cards : [];
   const placeholderCount = player.in_hand && !cardsVisible ? 2 : 0;
   const last = actionLabel(player.last_action);
-  const cardSize = isMe ? "lg" : "sm";
+  const cardSize = compact || !meBig ? "sm" : "lg";
   const dim = !player.in_hand;
 
   // Bet chips: positioned between this seat and table center (50, 44).
@@ -299,8 +360,8 @@ function Seat({
   const seatToCenterLen = Math.hypot(cx - x, cy - y) || 1;
   const dirX = (cx - x) / seatToCenterLen;
   const dirY = (cy - y) / seatToCenterLen;
-  const halfW = isMe ? 100 : 70;
-  const halfH = isMe ? 78 : 62;
+  const halfW = meBig ? 100 : 70;
+  const halfH = meBig ? 78 : 62;
   const btnGapPx = 24;
   const btnOffsetPx =
     Math.min(
@@ -323,8 +384,8 @@ function Seat({
           position: "absolute",
           left: `${x}%`,
           top: `${y}%`,
-          transform: "translate(-50%, -50%)",
-          width: isMe ? 200 : 140,
+          transform: `translate(-50%, -50%)${counterRotate}`,
+          width: meBig ? 200 : 140,
           opacity: dim ? 0.55 : 1,
           transition: "opacity 200ms ease, box-shadow 220ms ease",
         }}
@@ -450,7 +511,7 @@ function Seat({
             position: "absolute",
             left: `${betX}%`,
             top: `${betY}%`,
-            transform: "translate(-50%, -50%)",
+            transform: `translate(-50%, -50%)${counterRotate}`,
           }}
         >
           <ChipStack amount={player.committed_round} />
@@ -466,7 +527,7 @@ function Seat({
             position: "absolute",
             left: `${x}%`,
             top: `${y}%`,
-            transform: `translate(-50%, -50%) translate(${dirX * btnOffsetPx}px, ${dirY * btnOffsetPx}px)`,
+            transform: `translate(-50%, -50%) translate(${dirX * btnOffsetPx}px, ${dirY * btnOffsetPx}px)${counterRotate}`,
           }}
         >
           <DealerButton />

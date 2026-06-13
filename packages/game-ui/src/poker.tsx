@@ -3,7 +3,8 @@
 import { useMemo, useState } from "react";
 
 import { PlaybackControls, usePlayback } from "./controls";
-import { PokerBoard } from "./poker/board";
+import { AspectSelect, ReplayFrame, ASPECT_RATIOS, type AspectRatio } from "./frame";
+import { PokerBoard, type SeatInfo } from "./poker/board";
 import type { PokerState } from "./poker/types";
 import { seatLabel, type RawEvent, type RawGameEndEvt } from "./types";
 
@@ -33,7 +34,21 @@ type Pov = "all" | number;
 // slow enough to read.
 const POKER_TICKS_PER_SEC = 2;
 
-export function PokerReplay({ events }: { events: RawEvent[] }) {
+// Poker's oval felt is laid out landscape, so the board renders natively at
+// 16:9 — that's the default replay ratio. The selector re-frames into the rest.
+const POKER_NATIVE_RATIO: AspectRatio = "16:9";
+
+export function PokerReplay({
+  events,
+  defaultRatio = POKER_NATIVE_RATIO,
+  ratios = ASPECT_RATIOS,
+}: {
+  events: RawEvent[];
+  // Initial aspect ratio (defaults to the board's native 16:9). The selector
+  // lets viewers re-frame into the other social ratios for capture.
+  defaultRatio?: AspectRatio;
+  ratios?: AspectRatio[];
+}) {
   const frames = useMemo(() => buildPokerFrames(events), [events]);
   const totalFrames = frames.length;
   const playback = usePlayback(totalFrames, POKER_TICKS_PER_SEC);
@@ -47,7 +62,22 @@ export function PokerReplay({ events }: { events: RawEvent[] }) {
     return first.players.map((p) => p.seat).sort((a, b) => a - b);
   }, [frames]);
 
+  // Real player names for the on-table seat plates (the board falls back to
+  // "seat N" without this) — so identity lives on the table and the sidebar can
+  // be dropped.
+  const seatInfo = useMemo<SeatInfo[]>(
+    () =>
+      seats.map((s) => ({
+        seat: s,
+        handle: seatLabel(events, s),
+        is_bot: false,
+        bot_label: null,
+      })),
+    [seats, events],
+  );
+
   const [pov, setPov] = useState<Pov>("all");
+  const [ratio, setRatio] = useState<AspectRatio>(defaultRatio);
 
   // Apply POV redaction client-side. The journal has full info; for a chosen
   // seat we blank other seats' hole_cards until the engine sets
@@ -90,76 +120,70 @@ export function PokerReplay({ events }: { events: RawEvent[] }) {
   const revealAll = pov === "all";
   const povSeat = pov === "all" ? null : pov;
 
+  // Winner shown in the brand corner only at the end, so it doesn't spoil.
+  const winnerSeat = finalPlacement[0];
+  const atEnd = playback.frame >= totalFrames - 1;
+  const brand =
+    atEnd && winnerSeat !== undefined ? (
+      <span className="vw-frame__result">🏆 {seatLabel(events, winnerSeat)}</span>
+    ) : undefined;
+
+  // Off-native ratios letterbox the wide table — fill the band with a chip-count
+  // leaderboard (sorted high→low, busted players dimmed). The frame renders it
+  // only when a band exists, so native 16:9 stays clean.
+  const leaderboard = (
+    <>
+      {[...renderedState.players]
+        .sort((a, b) => b.stack - a.stack)
+        .map((p) => {
+          const out = !p.in_tournament || p.stack === 0;
+          return (
+            <span
+              key={p.seat}
+              className={"vw-frame__legend-item" + (out ? " vw-frame__legend-item--dead" : "")}
+            >
+              <span
+                className="vw-frame__legend-chip"
+                style={{ backgroundColor: p.color }}
+              />
+              {seatLabel(events, p.seat)} {p.stack}
+            </span>
+          );
+        })}
+    </>
+  );
+
   return (
     <div className="vw-replay">
-      <div className="vw-replay__layout">
-        <div>
-          <PokerBoard state={renderedState} mySeat={povSeat} revealAll={revealAll} />
-          <PlaybackControls
-            totalFrames={totalFrames}
-            currentTick={current.state.tick}
-            maxTick={frames[totalFrames - 1].state.tick}
-            playback={playback}
-            extra={povControl}
-          />
-        </div>
-        <aside className="vw-replay__sidebar">
-          <div className="vw-poker__info">
-            <div className="vw-poker__info-row">
-              <span>hand</span>
-              <span>#{current.state.hand_number}</span>
-            </div>
-            <div className="vw-poker__info-row">
-              <span>phase</span>
-              <span>{current.state.phase}</span>
-            </div>
-            <div className="vw-poker__info-row">
-              <span>pot</span>
-              <span>{current.state.pot}</span>
-            </div>
-            <div className="vw-poker__info-row">
-              <span>blinds</span>
-              <span>
-                {current.state.small_blind}/{current.state.big_blind}
-              </span>
-            </div>
-          </div>
-          {renderedState.players.map((p) => {
-            const finalPos = finalPlacement.indexOf(p.seat);
-            return (
-              <div
-                key={p.seat}
-                className={
-                  "vw-replay__player" +
-                  (p.in_tournament ? "" : " vw-replay__player--dead")
-                }
-              >
-                <div className="vw-replay__player-row">
-                  <div
-                    className="vw-replay__player-chip"
-                    style={{ backgroundColor: p.color }}
-                  />
-                  <p className="vw-replay__player-name">{seatLabel(events, p.seat)}</p>
-                  <span
-                    className={
-                      "vw-replay__player-status " +
-                      (p.in_tournament
-                        ? "vw-replay__player-status--alive"
-                        : "vw-replay__player-status--dead")
-                    }
-                  >
-                    {p.in_tournament ? "in" : "out"}
-                  </span>
-                </div>
-                <p className="vw-replay__player-finish">stack {p.stack}</p>
-                {finalPos >= 0 && (
-                  <p className="vw-replay__player-finish">final: #{finalPos + 1}</p>
-                )}
-              </div>
-            );
-          })}
-        </aside>
-      </div>
+      <ReplayFrame
+        ratio={ratio}
+        nativeRatio={POKER_NATIVE_RATIO}
+        brand={brand}
+        // 9:16 spins the table to fill the frame (no dead band), so the
+        // leaderboard only fills the 1:1 letterbox bands.
+        legend={ratio === "1:1" ? leaderboard : undefined}
+      >
+        <PokerBoard
+          state={renderedState}
+          mySeat={povSeat}
+          seatInfo={seatInfo}
+          revealAll={revealAll}
+          rotate90={ratio === "9:16"}
+          emphasizeMe={false}
+        />
+      </ReplayFrame>
+      <PlaybackControls
+        totalFrames={totalFrames}
+        currentTick={current.state.tick}
+        maxTick={frames[totalFrames - 1].state.tick}
+        playback={playback}
+        extra={
+          <>
+            {povControl}
+            <AspectSelect value={ratio} options={ratios} onChange={setRatio} />
+          </>
+        }
+      />
     </div>
   );
 }

@@ -31,7 +31,7 @@ from . import units as U
 # Ticks run at 100ms (10 Hz), matching Blast — slow enough for heuristic/LLM
 # bots to read the lane and react.
 LANE_LENGTH: Final = 1000.0
-MAX_TICKS: Final = 1800          # ~3 min ceiling; timeout resolves on base HP
+MAX_TICKS: Final = 3600          # ~6 min ceiling; timeout resolves on base HP
 BASE_HP: Final = 1500
 
 # ── economy ─────────────────────────────────────────────────────────────────

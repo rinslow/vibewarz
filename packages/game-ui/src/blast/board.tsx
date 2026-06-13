@@ -5,6 +5,10 @@ import { useEffect, useRef } from "react";
 import { BOMB_FUSE_TICKS, type BlastPlayer, type BlastState } from "./types";
 
 const TILE = 40;
+
+function clampN(v: number, lo: number, hi: number): number {
+  return Math.max(lo, Math.min(hi, v));
+}
 const POWERUP_GLYPH: Record<string, string> = {
   bomb: "B",
   range: "R",
@@ -58,9 +62,20 @@ type Facing = "up" | "down" | "left" | "right";
 export function BlastBoard({
   state,
   mySeat,
+  names = [],
+  showNames = false,
+  frame = false,
 }: {
   state: BlastState | null;
   mySeat: number | null;
+  // Per-seat display names, drawn riding each living character (native 1:1 only;
+  // off-native ratios show a roster legend in the letterbox bands instead).
+  names?: string[];
+  showNames?: boolean;
+  // Replay-frame mode: pad the board to a true square (native 1:1) with a large
+  // intrinsic size so the shared ReplayFrame can meet-fit it. The live play page
+  // leaves this false and renders the board at its natural rectangular size.
+  frame?: boolean;
 }) {
   // Track each seat's facing direction so the character's eyes can look
   // where they last moved. Recomputed from position deltas — the engine
@@ -88,51 +103,95 @@ export function BlastBoard({
   const { dims, board } = state;
   const width = dims.w * TILE;
   const height = dims.h * TILE;
+  // Replay-frame mode pads the board to a true square so its native ratio is
+  // exactly 1:1: the grid is centered with a matte top/bottom (same bg →
+  // invisible seam), which lets the shared ReplayFrame meet-fit + legend band
+  // math stay exact, and a large intrinsic size (vector) so CSS max-width/height
+  // downscale-fills any frame crisply. The live play page renders the board at
+  // its natural rectangular size (no padding) so it sits inline at a sane size.
+  const side = Math.max(width, height);
+  const vbW = frame ? side : width;
+  const vbH = frame ? side : height;
+  const padX = frame ? (side - width) / 2 : 0;
+  const padY = frame ? (side - height) / 2 : 0;
 
   return (
-    <div className="vw-replay vw-blast__board">
+    <>
       <style>{STYLE_SHEET}</style>
       <svg
-        width={width}
-        height={height}
-        viewBox={`0 0 ${width} ${height}`}
-        className="vw-blast__svg"
+        width={frame ? side * 2 : width}
+        height={frame ? side * 2 : height}
+        viewBox={`0 0 ${vbW} ${vbH}`}
+        className={"vw-blast__svg" + (frame ? " vw-blast__svg--frame" : "")}
         style={{ background: "#0a0a0b" }}
       >
-        {/* tile layer */}
-        {board.map((row, y) =>
-          row.map((cell, x) => (
-            <Tile key={`t-${x}-${y}`} cell={cell} x={x} y={y} />
-          )),
-        )}
+        <g transform={`translate(${padX} ${padY})`}>
+          {/* tile layer */}
+          {board.map((row, y) =>
+            row.map((cell, x) => (
+              <Tile key={`t-${x}-${y}`} cell={cell} x={x} y={y} />
+            )),
+          )}
 
-        {/* powerups */}
-        {state.powerups.map((pu) => (
-          <Powerup key={`pu-${pu.id}`} kind={pu.kind} x={pu.x} y={pu.y} />
-        ))}
+          {/* powerups */}
+          {state.powerups.map((pu) => (
+            <Powerup key={`pu-${pu.id}`} kind={pu.kind} x={pu.x} y={pu.y} />
+          ))}
 
-        {/* bombs */}
-        {state.bombs.map((b, i) => (
-          <Bomb key={`bomb-${b.x}-${b.y}-${i}`} x={b.x} y={b.y} timer={b.timer} />
-        ))}
+          {/* bombs */}
+          {state.bombs.map((b, i) => (
+            <Bomb key={`bomb-${b.x}-${b.y}-${i}`} x={b.x} y={b.y} timer={b.timer} />
+          ))}
 
-        {/* flames */}
-        {state.flames.map((f, i) => (
-          <Flame key={`flame-${f.x}-${f.y}-${i}`} x={f.x} y={f.y} />
-        ))}
+          {/* flames */}
+          {state.flames.map((f, i) => (
+            <Flame key={`flame-${f.x}-${f.y}-${i}`} x={f.x} y={f.y} />
+          ))}
 
-        {/* characters */}
-        {state.players.map((p) => (
-          <Character
-            key={`pl-${p.seat}`}
-            player={p}
-            facing={facingRef.current.get(p.seat) ?? "down"}
-          />
-        ))}
+          {/* characters */}
+          {state.players.map((p) => (
+            <Character
+              key={`pl-${p.seat}`}
+              player={p}
+              facing={facingRef.current.get(p.seat) ?? "down"}
+            />
+          ))}
+
+          {/* name labels ride each living character (native 1:1 only; off-native
+              ratios surface identity via the ReplayFrame legend instead) */}
+          {showNames &&
+            state.players.map((p) => {
+              if (!p.alive) return null;
+              const name = names[p.seat];
+              if (!name) return null;
+              const isMe = mySeat !== null && p.seat === mySeat;
+              // Clamp the centered label inside the board so wall-hugging
+              // characters don't get their name clipped (estimate half-width).
+              const halfW = (name.length * 7) / 2;
+              const cx = clampN(p.x * TILE + TILE / 2, halfW + 4, width - halfW - 4);
+              const cy = p.y * TILE + TILE / 2 - 20;
+              return (
+                <text
+                  key={`nm-${p.seat}`}
+                  x={cx}
+                  y={cy}
+                  textAnchor="middle"
+                  fontFamily="ui-monospace, monospace"
+                  fontSize={11}
+                  fontWeight={700}
+                  fill={p.color}
+                  stroke="#0a0a0b"
+                  strokeWidth={3}
+                  paintOrder="stroke"
+                  opacity={isMe ? 0.95 : 0.7}
+                >
+                  {name}
+                </text>
+              );
+            })}
+        </g>
       </svg>
-
-      <PlayerHud state={state} mySeat={mySeat} />
-    </div>
+    </>
   );
 }
 
@@ -447,49 +506,3 @@ function Character({
   );
 }
 
-// ── HUD ────────────────────────────────────────────────────────────────────
-
-function PlayerHud({
-  state,
-  mySeat,
-}: {
-  state: BlastState;
-  mySeat: number | null;
-}) {
-  return (
-    <div className="vw-blast__hud">
-      {state.players.map((p) => {
-        const isMe = mySeat !== null && p.seat === mySeat;
-        return (
-          <div
-            key={p.seat}
-            className="vw-blast__hud-card"
-            style={{
-              borderColor: p.alive ? p.color : "#333",
-              // Your own card is tinted with your seat color so "this is me"
-              // reads from color alone — same hue as your character.
-              backgroundColor: isMe && p.alive ? `${p.color}14` : undefined,
-              opacity: p.alive ? 1 : 0.4,
-            }}
-          >
-            <div className="vw-blast__hud-row">
-              <span style={{ color: p.color }}>seat {p.seat}</span>
-            </div>
-            <div className="vw-blast__hud-stats">
-              <span>
-                B<span style={{ color: "#a3e635" }}>{p.bombs_max}</span>
-              </span>
-              <span>
-                R<span style={{ color: "#fbbf24" }}>{p.blast_range}</span>
-              </span>
-              <span>
-                S<span style={{ color: "#38bdf8" }}>{3 - p.move_cooldown}</span>
-              </span>
-              {!p.alive && <span className="vw-blast__hud-dead">dead</span>}
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-}

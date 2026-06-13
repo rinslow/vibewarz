@@ -15,12 +15,35 @@ import {
 } from "./types";
 
 // ── battlefield geometry (SVG units) ─────────────────────────────────────────
+// The board renders natively at 16:9 (920×518) so a default replay is already a
+// social-ready clip. Everything (keeps, units, HP bars) anchors to GROUND_Y and
+// the ground band is the fixed slice below it, so the extra height over the old
+// 360-tall board is sky headroom — which also hosts the HUD overlay.
 const W = 920;
-const H = 360;
+const H = 518; // 920:518 ≈ 16:9
+const GROUND_BAND = 98; // ground slice below the horizon (unchanged)
 const FIELD_L = 80; // x where lane position 0 maps (just outside the left keep)
 const FIELD_R = W - 80; // x where lane position `length` maps
-const GROUND_Y = 262; // top of the ground band; unit feet rest here
+const GROUND_Y = H - GROUND_BAND; // top of the ground band; unit feet rest here
 const KEEP_HALF = 40;
+// Units and keeps render this much larger than their base art size, to fill the
+// taller 16:9 field and read better in shareable clips. Applied at the feet so
+// sprites/keeps grow upward and stay planted on the ground line.
+const ASSET_SCALE = 1.8;
+// Highest drawn point of each age's keep (raw units above the ground line):
+// stone palisade, castle pennant, factory smokestack, future emitter orb. Used
+// to float each base's HP bar just above its own silhouette rather than at a
+// single height tuned for the tallest keep.
+const KEEP_TOP_BY_AGE = [52, 122, 86, 121];
+
+// Fixed star field [xFrac, yFrac (of sky), radius] scattered across the upper
+// sky so the 16:9 headroom has some atmosphere. Avoids the moon's quadrant.
+const SKY_STARS: ReadonlyArray<readonly [number, number, number]> = [
+  [0.08, 0.18, 1.1], [0.15, 0.42, 0.8], [0.22, 0.12, 0.9], [0.31, 0.3, 1.2],
+  [0.39, 0.16, 0.7], [0.46, 0.4, 1.0], [0.53, 0.22, 0.85], [0.6, 0.35, 0.7],
+  [0.12, 0.6, 0.8], [0.27, 0.52, 0.7], [0.35, 0.66, 0.9], [0.5, 0.58, 0.8],
+  [0.66, 0.5, 0.75], [0.7, 0.18, 0.9], [0.9, 0.46, 0.8], [0.95, 0.2, 0.7],
+];
 
 // Smooth-march duration — just under the 100ms tick so units glide between
 // frames and arrive before the next tick resolves (same trick as Blast).
@@ -87,6 +110,27 @@ const STYLE_SHEET = `
 .aw-canter { animation: aw-canter 0.95s ease-in-out infinite; transform-origin: center bottom; transform-box: fill-box; }
 .aw-trot   { animation: aw-trot 0.62s ease-in-out infinite; transform-origin: center bottom; transform-box: fill-box; }
 .aw-hover  { animation: aw-hover 2s ease-in-out infinite; }
+/* strike accents — VFX layered onto a body's attack motion. Each accent uses
+   the SAME duration as the weapon keyframe it accompanies (so the two
+   animations stay phase-locked for the life of the element) and flashes in
+   the window where that weapon's strike lands:
+     aw-club 1.4s lands ~56% · aw-jab 1.5s peaks 30% · aw-level 1.7s holds
+     34–58% · aw-recoil 1.4s kicks 9% · aw-charge 1.9s peaks 32% · the hover
+     beam glows on aw-glow's 1.8s cycle. */
+@keyframes aw-club-swoosh { 0%,40% { opacity: 0; } 50% { opacity: 0.85; } 62% { opacity: 0.45; } 72%,100% { opacity: 0; } }
+@keyframes aw-club-impact { 0%,53% { opacity: 0; transform: scale(0.35); } 58% { opacity: 0.95; transform: scale(1); } 68% { opacity: 0.55; transform: scale(1.18); } 78%,100% { opacity: 0; transform: scale(1.4); } }
+@keyframes aw-jab-strike { 0%,16% { opacity: 0; transform: scale(0.5); } 30% { opacity: 0.95; transform: scale(1); } 42% { opacity: 0.4; } 54%,100% { opacity: 0; transform: scale(1.3); } }
+@keyframes aw-level-strike { 0%,32% { opacity: 0; transform: scale(0.5); } 40% { opacity: 0.9; transform: scale(1); } 54% { opacity: 0.65; } 66%,100% { opacity: 0; transform: scale(1.3); } }
+@keyframes aw-muzzle { 0%,4% { opacity: 0; transform: scale(0.45); } 9% { opacity: 0.95; transform: scale(1); } 20% { opacity: 0.5; } 32%,100% { opacity: 0; transform: scale(1.3); } }
+@keyframes aw-charge-strike { 0%,20% { opacity: 0; transform: scale(0.55); } 32% { opacity: 0.95; transform: scale(1); } 44% { opacity: 0.4; } 56%,100% { opacity: 0; transform: scale(1.25); } }
+@keyframes aw-beam-pulse { 0%,100% { opacity: 0.2; } 50% { opacity: 0.9; } }
+.aw-club-swoosh { animation: aw-club-swoosh 1.4s ease-in-out infinite; }
+.aw-club-impact { animation: aw-club-impact 1.4s ease-in-out infinite; transform-origin: center; transform-box: fill-box; }
+.aw-jab-strike { animation: aw-jab-strike 1.5s ease-in-out infinite; transform-origin: center; transform-box: fill-box; }
+.aw-level-strike { animation: aw-level-strike 1.7s ease-in-out infinite; transform-origin: center; transform-box: fill-box; }
+.aw-muzzle { animation: aw-muzzle 1.4s ease-out infinite; transform-origin: center; transform-box: fill-box; }
+.aw-charge-strike { animation: aw-charge-strike 1.9s ease-in-out infinite; transform-origin: center; transform-box: fill-box; }
+.aw-beam-pulse { animation: aw-beam-pulse 1.8s ease-in-out infinite; }
 /* locomotion — the MOVE state. Infantry legs stride (each leg swings about its
    hip, the two on opposite phases); the weapon strikes above are gated to the
    ATTACK state, so a body plays exactly one of march/strike at a time. */
@@ -140,6 +184,7 @@ export function VibelordsBoard({
               age={player?.age ?? 0}
               color={player?.color ?? "#888"}
               cx={b.seat === 0 ? FIELD_L - 36 : FIELD_R + 36}
+              scale={ASSET_SCALE}
             />
           );
         })}
@@ -181,6 +226,22 @@ function Backdrop({ topAge }: { topAge: number }) {
         </linearGradient>
       </defs>
       <rect x={0} y={0} width={W} height={GROUND_Y} fill="url(#aw-sky)" />
+      {/* atmosphere — moon + stars fill the sky headroom so the 16:9 framing
+          reads as intentional rather than empty. Fixed positions so nothing
+          jitters between ticks. */}
+      {SKY_STARS.map(([fx, fy, r], i) => (
+        <circle
+          key={`star-${i}`}
+          cx={fx * W}
+          cy={fy * GROUND_Y}
+          r={r}
+          fill="#cdd3f0"
+          opacity={0.55}
+        />
+      ))}
+      <circle cx={W * 0.8} cy={GROUND_Y * 0.26} r={34} fill="#1c1b2e" opacity={0.5} />
+      <circle cx={W * 0.8} cy={GROUND_Y * 0.26} r={22} fill="#e8e4f5" opacity={0.92} />
+      <circle cx={W * 0.8 - 7} cy={GROUND_Y * 0.26 - 4} r={18} fill="#cfd6ef" opacity={0.5} />
       {/* distant parallax hills */}
       <path
         d={`M0 ${GROUND_Y} Q ${W * 0.2} ${GROUND_Y - 60} ${W * 0.42} ${GROUND_Y - 18}
@@ -218,15 +279,22 @@ function Keep({
   age,
   color,
   cx,
+  scale = 1,
 }: {
   base: VibelordsBase;
   age: number;
   color: string;
   cx: number;
+  // Visual size multiplier for the building (the live board enlarges keeps to
+  // fill the field; the asset-sheet gallery renders them at base scale = 1).
+  scale?: number;
 }) {
   const dead = base.hp <= 0;
   const hpFrac = Math.max(0, Math.min(1, base.hp / base.max_hp));
-  const hpBarY = GROUND_Y - 126; // clears the tallest fortress (castle turret / future spire)
+  // Float the bar just above this keep's own (scaled) silhouette + a small gap,
+  // so it hugs the building at any age and any ASSET_SCALE.
+  const keepTop = KEEP_TOP_BY_AGE[Math.max(0, Math.min(3, age))];
+  const hpBarY = GROUND_Y - keepTop * scale - 15;
   return (
     <g opacity={dead ? 0.4 : 1}>
       {/* base HP bar floating above the keep */}
@@ -252,16 +320,22 @@ function Keep({
         </text>
       </g>
 
-      {/* shadow */}
-      <ellipse cx={cx} cy={GROUND_Y + 3} rx={KEEP_HALF + 8} ry={6} fill="#00000066" />
+      {/* building + shadow, enlarged about the ground anchor so the keep grows
+          upward and stays planted (the HP bar above stays at UI scale). */}
+      <g
+        transform={`translate(${cx} ${GROUND_Y}) scale(${scale}) translate(${-cx} ${-GROUND_Y})`}
+      >
+        {/* shadow */}
+        <ellipse cx={cx} cy={GROUND_Y + 3} rx={KEEP_HALF + 8} ry={6} fill="#00000066" />
 
-      {/* each age has its own architecture — a different silhouette, not just a
-          recoloured wall: a primitive palisade, a stone castle, a brick
-          factory-fort, and a glowing energy citadel. */}
-      {age <= 0 && <StoneFort cx={cx} color={color} />}
-      {age === 1 && <CastleKeep cx={cx} color={color} />}
-      {age === 2 && <Factory cx={cx} color={color} />}
-      {age >= 3 && <FutureCitadel cx={cx} color={color} />}
+        {/* each age has its own architecture — a different silhouette, not just a
+            recoloured wall: a primitive palisade, a stone castle, a brick
+            factory-fort, and a glowing energy citadel. */}
+        {age <= 0 && <StoneFort cx={cx} color={color} />}
+        {age === 1 && <CastleKeep cx={cx} color={color} />}
+        {age === 2 && <Factory cx={cx} color={color} />}
+        {age >= 3 && <FutureCitadel cx={cx} color={color} />}
+      </g>
     </g>
   );
 }
@@ -510,7 +584,7 @@ function UnitSprite({
   const a = Math.max(0, Math.min(3, unit.age));
   const mode: AnimMode = unit.atk_cd > 0 ? "attack" : "move";
   // Later ages are physically larger — a Future mech towers over a caveman.
-  const s = SIZE_BY_AGE[a];
+  const s = SIZE_BY_AGE[a] * ASSET_SCALE;
   // light vertical stagger so massed armies read with depth
   const lane = hashId(unit.id) % 3;
   const y = GROUND_Y + 2 + lane * 9;
@@ -582,12 +656,47 @@ function PikeBody({ age, color, mode }: { age: number; color: string; mode: Anim
     // Clubman — broad-shouldered brute, hide kilt, big stone-headed club
     return (
       <g stroke="#0a0a0a" strokeWidth={1}>
+        {/* strike accents — a swoosh crescent along the club head's sweep
+            (circle centred on the swing pivot (3,-13), radius ≈ 22, from the
+            -52° windup to the +54° follow-through) and an impact burst where
+            the blow lands. Phase-locked to aw-club via equal durations. */}
+        {mode === "attack" && (
+          <g className="aw-club-swoosh" stroke="none">
+            <path d="M -5.2 -33.4 A 22 22 0 0 1 24.9 -15.3" fill="none" stroke="#e8e0c8" strokeWidth={4.6} strokeLinecap="round" opacity={0.32} />
+            <path d="M -1 -34.5 A 22 22 0 0 1 24.9 -15.3" fill="none" stroke="#fff7d6" strokeWidth={2} strokeLinecap="round" />
+          </g>
+        )}
         {/* big stone club on the shoulder — hefted in a slow windup swing */}
         <g className={mode === "attack" ? "aw-club" : ""}>
           <line x1={3} y1={-13} x2={13} y2={-31} stroke={p.wood} strokeWidth={3} />
           <ellipse cx={14} cy={-32} rx={5.4} ry={6.4} fill="#8a7d64" />
           <ellipse cx={12} cy={-30} rx={1.6} ry={2} fill="#0a0a0a" opacity={0.25} />
         </g>
+        {/* impact burst over the club face at the landing beat — drawn after
+            the club so the flash pops on top of the stone head */}
+        {mode === "attack" && (
+          <g transform="translate(28, -13.5)" stroke="none">
+            <g className="aw-club-impact">
+              {[-42, -10, 22, 55].map((a) => {
+                const r = (a * Math.PI) / 180;
+                return (
+                  <line
+                    key={a}
+                    x1={Math.cos(r) * 4}
+                    y1={Math.sin(r) * 4}
+                    x2={Math.cos(r) * 9.5}
+                    y2={Math.sin(r) * 9.5}
+                    stroke="#fff7d6"
+                    strokeWidth={1.6}
+                    strokeLinecap="round"
+                  />
+                );
+              })}
+              <circle cx={3.5} cy={6} r={1.6} fill="#9b8a6a" />
+              <circle cx={-1.5} cy={7.5} r={1.1} fill="#8a7d64" />
+            </g>
+          </g>
+        )}
         {/* stubby legs */}
         <StrideLeg mode={mode}>
           <rect x={-5} y={-7} width={4.2} height={7} fill="#0a0a0a" stroke="none" />
@@ -619,6 +728,30 @@ function PikeBody({ age, color, mode }: { age: number; color: string; mode: Anim
           <line x1={5} y1={-40} x2={7} y2={2} stroke={p.wood} strokeWidth={1.8} />
           <path d="M 5 -40 l 2.5 -6 l 2.5 6 Z" fill={p.metal} />
         </g>
+        {/* strike accent — thrust flash where the pike points once aw-level
+            lays it flat (tip lands at ≈(40.5,-12.7) for the 34–58% hold), so
+            this is drawn at fixed coords rather than inside the rotating group */}
+        {mode === "attack" && (
+          <g className="aw-level-strike" stroke="none">
+            <line x1={20} y1={-10.6} x2={33} y2={-11.4} stroke="#e8e8ea" strokeWidth={1} strokeLinecap="round" opacity={0.7} />
+            <line x1={18} y1={-15} x2={31} y2={-15.8} stroke="#e8e8ea" strokeWidth={1} strokeLinecap="round" opacity={0.7} />
+            {[-42, -10, 24, 56].map((a) => {
+              const r = (a * Math.PI) / 180;
+              return (
+                <line
+                  key={a}
+                  x1={40.5 + Math.cos(r) * 2}
+                  y1={-12.7 + Math.sin(r) * 2}
+                  x2={40.5 + Math.cos(r) * 6.5}
+                  y2={-12.7 + Math.sin(r) * 6.5}
+                  stroke="#fff7d6"
+                  strokeWidth={1.4}
+                  strokeLinecap="round"
+                />
+              );
+            })}
+          </g>
+        )}
         <StrideLeg mode={mode}>
           <rect x={-4} y={-7} width={3.2} height={7} fill={p.mat} />
         </StrideLeg>
@@ -643,6 +776,16 @@ function PikeBody({ age, color, mode }: { age: number; color: string; mode: Anim
           <line x1={6} y1={-7} x2={11} y2={-31} stroke="#2e2620" strokeWidth={2.4} />
           <line x1={10.4} y1={-29} x2={11.8} y2={-38} stroke={p.metal} strokeWidth={1.6} />
           <rect x={8.4} y={-20} width={3} height={1.8} fill="#2e2620" />
+          {/* strike accent — muzzle flash + smoke off the barrel as it kicks */}
+          {mode === "attack" && (
+            <g className="aw-muzzle" stroke="none">
+              <circle cx={12.2} cy={-39.6} r={2.4} fill="#fde047" opacity={0.9} />
+              <line x1={13.4} y1={-41.2} x2={16.2} y2={-44.6} stroke="#fff7d6" strokeWidth={1.4} strokeLinecap="round" />
+              <line x1={14.2} y1={-39.2} x2={18} y2={-40} stroke="#fff7d6" strokeWidth={1.2} strokeLinecap="round" />
+              <line x1={11.2} y1={-42} x2={11.6} y2={-45.6} stroke="#fff7d6" strokeWidth={1.1} strokeLinecap="round" />
+              <circle cx={14.6} cy={-44.4} r={1.5} fill="#9ca3af" opacity={0.5} />
+            </g>
+          )}
         </g>
         {/* boots below the coat */}
         <StrideLeg mode={mode}>
@@ -676,6 +819,28 @@ function PikeBody({ age, color, mode }: { age: number; color: string; mode: Anim
         <line x1={12} y1={-42} x2={13} y2={-22} stroke={p.metal} strokeWidth={3.4} className="aw-glow" />
         <path d="M 11.5 -44 l 1.5 -6 l 1.5 6 Z" fill={p.metal} className="aw-glow" />
         <circle cx={13} cy={-42} r={4.5} fill={p.glow ?? p.metal} opacity={0.3} className="aw-glow" />
+        {/* strike accent — energy discharge crackling out of the lance-head
+            glow orb at the charge's forward peak (flecks start outside the
+            r=4.5 orb so they radiate from its rim, not across it) */}
+        {mode === "attack" && (
+          <g className="aw-charge-strike" stroke="none">
+            {[-120, -65, -15, 30, 80].map((a) => {
+              const r = (a * Math.PI) / 180;
+              return (
+                <line
+                  key={a}
+                  x1={13 + Math.cos(r) * 5.5}
+                  y1={-42 + Math.sin(r) * 5.5}
+                  x2={13 + Math.cos(r) * 9.5}
+                  y2={-42 + Math.sin(r) * 9.5}
+                  stroke="#e0f7ff"
+                  strokeWidth={1.5}
+                  strokeLinecap="round"
+                />
+              );
+            })}
+          </g>
+        )}
       </g>
       {/* piston legs + heavy feet — heave forward and back as it stomps along */}
       <StrideLeg mode={mode}>
@@ -716,6 +881,30 @@ function CavalryBody({ age, color, mode }: { age: number; color: string; mode: A
           <g className={mode === "attack" ? "aw-jab" : ""}>
             <line x1={2} y1={-18} x2={23} y2={-20} stroke={p.wood} strokeWidth={1.8} />
             <path d="M 23 -20 l 4 -1 l -3 3 Z" fill={p.metal} />
+            {/* strike accent — speed lines along the shaft + a burst off the
+                spear tip at the jab's peak (inside the jab group so the
+                accent rides the thrust) */}
+            {mode === "attack" && (
+              <g className="aw-jab-strike" stroke="none">
+                <line x1={10} y1={-23.2} x2={19} y2={-23.9} stroke="#fff7d6" strokeWidth={1} strokeLinecap="round" opacity={0.7} />
+                <line x1={8} y1={-16.4} x2={17} y2={-17} stroke="#fff7d6" strokeWidth={1} strokeLinecap="round" opacity={0.7} />
+                {[-40, -8, 26].map((a) => {
+                  const r = (a * Math.PI) / 180;
+                  return (
+                    <line
+                      key={a}
+                      x1={26.5 + Math.cos(r) * 2}
+                      y1={-20.5 + Math.sin(r) * 2}
+                      x2={26.5 + Math.cos(r) * 6}
+                      y2={-20.5 + Math.sin(r) * 6}
+                      stroke="#fff7d6"
+                      strokeWidth={1.3}
+                      strokeLinecap="round"
+                    />
+                  );
+                })}
+              </g>
+            )}
           </g>
           {[-8, -3, 5, 10].map((lx, i) => (
             <rect key={i} x={lx} y={-8} width={2.4} height={8} fill="#3a3a3a" stroke="none" />
@@ -748,6 +937,29 @@ function CavalryBody({ age, color, mode }: { age: number; color: string; mode: A
             <path d="M 2 -25 q -3.4 3.5 0 7 l 2.4 -0.3 q -2.6 -3 0 -6.4 Z" fill="#9aa1ab" stroke="#0a0a0a" strokeWidth={0.6} />
             <path d="M 29 -25.2 l 4.6 -1.2 m -4.6 1.2 l 4.6 0.4 m -4.6 -0.4 l 4.2 1.9" fill="none" stroke="#c7ccd4" strokeWidth={1.1} />
             <path d="M 8 -23.6 l 8 -0.9 l -1.8 2.4 l 1.8 2.4 l -8 0.9 Z" fill={color} />
+            {/* strike accent — joust shock burst off the coronel + speed
+                lines along the lance at the jab's peak */}
+            {mode === "attack" && (
+              <g className="aw-jab-strike" stroke="none">
+                <line x1={13} y1={-28.6} x2={23} y2={-29.5} stroke="#e8e8ea" strokeWidth={1} strokeLinecap="round" opacity={0.7} />
+                <line x1={11} y1={-17.6} x2={21} y2={-18.4} stroke="#e8e8ea" strokeWidth={1} strokeLinecap="round" opacity={0.7} />
+                {[-42, -10, 24, 56].map((a) => {
+                  const r = (a * Math.PI) / 180;
+                  return (
+                    <line
+                      key={a}
+                      x1={33 + Math.cos(r) * 2.5}
+                      y1={-24.4 + Math.sin(r) * 2.5}
+                      x2={33 + Math.cos(r) * 7}
+                      y2={-24.4 + Math.sin(r) * 7}
+                      stroke="#fff7d6"
+                      strokeWidth={1.4}
+                      strokeLinecap="round"
+                    />
+                  );
+                })}
+              </g>
+            )}
           </g>
           {/* tail */}
           <path d="M -11 -16 q -6 0 -8 7 q 3 -2 5 -1 q -2 3 -1 6 q 5 -4 6 -11 Z" fill={horsehair} />
@@ -786,6 +998,16 @@ function CavalryBody({ age, color, mode }: { age: number; color: string; mode: A
           {/* carbine — recoils as it fires */}
           <g className={mode === "attack" ? "aw-recoil" : ""}>
             <line x1={-2} y1={-20} x2={13} y2={-22} stroke={p.metal} strokeWidth={2} />
+            {/* strike accent — muzzle flash + powder smoke on the recoil beat */}
+            {mode === "attack" && (
+              <g className="aw-muzzle" stroke="none">
+                <circle cx={14.5} cy={-22.2} r={2.4} fill="#fde047" opacity={0.9} />
+                <line x1={16.5} y1={-22.4} x2={20.5} y2={-22.8} stroke="#fff7d6" strokeWidth={1.4} strokeLinecap="round" />
+                <line x1={15.8} y1={-24.4} x2={18.8} y2={-26.2} stroke="#fff7d6" strokeWidth={1.1} strokeLinecap="round" />
+                <line x1={15.8} y1={-20.2} x2={18.8} y2={-18.6} stroke="#fff7d6" strokeWidth={1.1} strokeLinecap="round" />
+                <circle cx={16} cy={-26.5} r={1.5} fill="#9ca3af" opacity={0.5} />
+              </g>
+            )}
           </g>
           {[-8, -3, 5, 10].map((lx, i) => (
             <rect key={i} x={lx} y={-8} width={2.4} height={8} fill="#4a3a28" stroke="none" />
@@ -806,9 +1028,15 @@ function CavalryBody({ age, color, mode }: { age: number; color: string; mode: A
       {/* the whole saucer bobs gently as it hovers — a flyer never plants, so
           the hover runs in both states; only the strike beam is gated to ATTACK */}
       <g className="aw-hover">
-        {/* downward energy beam — fired only while attacking */}
+        {/* downward energy beam — fired only while attacking. The wide cone
+            idles on aw-glow; the bright core + ground flare pulse harder on
+            the same 1.8s cycle so the strike reads as firing, not ambience. */}
         {mode === "attack" && (
-          <path d="M -6 -10 l 12 0 l 7 10 l -26 0 Z" fill={p.glow ?? p.metal} opacity={0.16} className="aw-glow" />
+          <>
+            <path d="M -6 -10 l 12 0 l 7 10 l -26 0 Z" fill={p.glow ?? p.metal} opacity={0.16} className="aw-glow" />
+            <path d="M -2.5 -10 l 5 0 l 3 10 l -11 0 Z" fill="#e0f7ff" className="aw-beam-pulse" stroke="none" />
+            <ellipse cx={0} cy={0} rx={13} ry={2.2} fill={p.glow ?? p.metal} className="aw-beam-pulse" stroke="none" />
+          </>
         )}
         {/* underglow halo */}
         <ellipse cx={0} cy={-7} rx={18} ry={3} fill={p.glow ?? p.metal} opacity={0.3} className="aw-glow" />
@@ -985,7 +1213,7 @@ function Fx({
     const x1 = px(fx.x1);
     const age = fx.age ?? 1;
     const dir = x1 >= x0 ? 1 : -1;
-    const y = fireY ?? GROUND_Y - (MUZZLE_BODY_Y[age] ?? 16) * (SIZE_BY_AGE[age] ?? 1);
+    const y = fireY ?? GROUND_Y - (MUZZLE_BODY_Y[age] ?? 16) * (SIZE_BY_AGE[age] ?? 1) * ASSET_SCALE;
     if (age <= 0) {
       // Slinger — a high lob + a tumbling stone landing at the target
       const midX = (x0 + x1) / 2;
@@ -1385,14 +1613,18 @@ function Row({ children }: { children: ReactNode }) {
 function UnitCell({ type, age, mode }: { type: VibelordsUnitType; age: number; mode: AnimMode }) {
   const s = SIZE_BY_AGE[age] * ASSET_ZOOM;
   return (
-    <figure style={{ ...cellBox, width: 150 }}>
+    <figure style={{ ...cellBox, width: 180 }}>
+      {/* extra room on the right and above (bodies face right, some weapons
+          reach high) so attack-mode strike accents — swooshes, thrust
+          flashes, impact bursts — aren't clipped at the cell edge. The
+          Pikeman's leveled tip reaches the farthest: x ≈ 47 × 2.83 ≈ 133. */}
       <svg
-        viewBox="-65 -170 130 185"
-        width={130}
-        height={185}
+        viewBox="-65 -200 205 220"
+        width={164}
+        height={176}
         style={{ display: "block", margin: "0 auto" }}
       >
-        <line x1={-55} y1={0} x2={55} y2={0} stroke="#2c2a22" strokeWidth={1.5} />
+        <line x1={-55} y1={0} x2={130} y2={0} stroke="#2c2a22" strokeWidth={1.5} />
         <ellipse cx={0} cy={2.5} rx={9 * s} ry={2.4 * s} fill="#00000055" />
         <g transform={`scale(${s})`}>
           {type === "pike" && <PikeBody age={age} color={SEAT_GREEN} mode={mode} />}
@@ -1414,9 +1646,9 @@ function KeepCell({ age }: { age: number }) {
   return (
     <figure style={{ ...cellBox, width: 200 }}>
       <svg
-        viewBox={`0 128 140 154`}
+        viewBox={`0 ${GROUND_Y - 148} 140 168`}
         width={180}
-        height={198}
+        height={216}
         style={{ display: "block", margin: "0 auto" }}
       >
         <line x1={0} y1={GROUND_Y} x2={140} y2={GROUND_Y} stroke="#2c2a22" strokeWidth={1.5} />

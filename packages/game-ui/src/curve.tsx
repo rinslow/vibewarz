@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { PlaybackControls, usePlayback } from "./controls";
+import { AspectSelect, ReplayFrame, ASPECT_RATIOS, type AspectRatio } from "./frame";
 import { seatLabel, type RawEvent, type RawGameEndEvt } from "./types";
 
 type PowerupKind = "speed" | "slow" | "god";
@@ -42,6 +43,10 @@ const POWERUP_COLORS: Record<PowerupKind, string> = {
   slow: "#ef4444",
   god: "#a855f7",
 };
+
+function clamp(v: number, lo: number, hi: number): number {
+  return Math.max(lo, Math.min(hi, v));
+}
 
 function powerupFill(kind: PowerupKind, tick: number): string {
   if (kind === "god") return `hsl(${(tick * 8) % 360}, 90%, 60%)`;
@@ -137,16 +142,33 @@ export function buildCurveTimeline(events: RawEvent[]): CurveTimeline {
 // Curve: tick_interval_ms=50 → 20 Hz live cadence.
 const CURVE_TICKS_PER_SEC = 20;
 
+// Curve's arena is square, so the board renders natively at 1:1 — that's the
+// default replay ratio. The selector re-frames into the other social ratios.
+const CURVE_NATIVE_RATIO: AspectRatio = "1:1";
+
 export function CurveReplay({
   events,
   mySeat = null,
+  defaultRatio = CURVE_NATIVE_RATIO,
+  ratios = ASPECT_RATIOS,
 }: {
   events: RawEvent[];
-  // Seat the viewer played, so their row reads in their own seat color.
+  // Seat the viewer played, so their name label reads a touch brighter.
   // null → neutral spectator view (no highlight).
   mySeat?: number | null;
+  // Initial aspect ratio (defaults to the board's native 1:1). The selector
+  // lets viewers re-frame into the other social ratios for capture.
+  defaultRatio?: AspectRatio;
+  ratios?: AspectRatio[];
 }) {
   const { trails, frames } = useMemo(() => buildCurveTimeline(events), [events]);
+  // Per-seat display names, resolved once — drawn on each player's curve head.
+  const names = useMemo(() => {
+    const seats = frames[0]?.state.players.map((p) => p.seat) ?? [];
+    const max = seats.length ? Math.max(...seats) : -1;
+    return Array.from({ length: max + 1 }, (_, seat) => seatLabel(events, seat));
+  }, [events, frames]);
+  const [ratio, setRatio] = useState<AspectRatio>(defaultRatio);
   const totalFrames = frames.length;
   const playback = usePlayback(totalFrames, CURVE_TICKS_PER_SEC);
   const current = frames[Math.min(playback.frame, Math.max(0, totalFrames - 1))];
@@ -157,64 +179,69 @@ export function CurveReplay({
     return <div className="vw-replay vw-replay__empty">empty replay</div>;
   }
 
+  // Player identity now lives in-board (names ride their curve heads; a dead
+  // player has no head, so its label vanishes). The only thing the dropped
+  // sidebar still added is the final result — surface it as a brand line, but
+  // only once playback reaches the end so it doesn't spoil the outcome.
+  const winnerSeat = finalPlacement[0];
+  const atEnd = playback.frame >= totalFrames - 1;
+  const brand =
+    atEnd && winnerSeat !== undefined ? (
+      <span className="vw-frame__result">🏆 {seatLabel(events, winnerSeat)}</span>
+    ) : undefined;
+
+  // In the native 1:1 frame names ride the heads; in the re-framed ratios that
+  // would crowd the board, so identity moves to a roster legend in the dead
+  // space instead (ReplayFrame places it; greys out players as they die).
+  const onHead = ratio === CURVE_NATIVE_RATIO;
+  const legend = onHead ? undefined : (
+    <>
+      {current.state.players.map((p) => {
+        const isMe = mySeat !== null && p.seat === mySeat;
+        return (
+          <span
+            key={p.seat}
+            className={
+              "vw-frame__legend-item" +
+              (p.alive ? "" : " vw-frame__legend-item--dead") +
+              (isMe ? " vw-frame__legend-item--me" : "")
+            }
+          >
+            <span
+              className="vw-frame__legend-chip"
+              style={{ backgroundColor: p.color }}
+            />
+            {names[p.seat] ?? `seat ${p.seat}`}
+          </span>
+        );
+      })}
+    </>
+  );
+
   return (
     <div className="vw-replay">
-      <div className="vw-replay__layout">
-        <div>
-          <CurveBoard
-            state={current.state}
-            trails={trails}
-            trailLens={current.trailLens}
-          />
-          <PlaybackControls
-            totalFrames={totalFrames}
-            currentTick={current.state.tick}
-            maxTick={frames[totalFrames - 1].state.tick}
-            playback={playback}
-          />
-        </div>
-        <aside className="vw-replay__sidebar">
-          {current.state.players.map((p) => {
-            const finalPos = finalPlacement.indexOf(p.seat);
-            const isMe = mySeat !== null && p.seat === mySeat;
-            return (
-              <div
-                key={p.seat}
-                className={
-                  "vw-replay__player" +
-                  (p.alive ? "" : " vw-replay__player--dead")
-                }
-                // Your own row is tinted with your seat color — identifies you
-                // by color alone, matching your curve on the board.
-                style={isMe ? { backgroundColor: `${p.color}14` } : undefined}
-              >
-                <div className="vw-replay__player-row">
-                  <div
-                    className="vw-replay__player-chip"
-                    style={{ backgroundColor: p.color }}
-                  />
-                  <p className="vw-replay__player-name">{seatLabel(events, p.seat)}</p>
-                  <span
-                    className={
-                      "vw-replay__player-status " +
-                      (p.alive
-                        ? "vw-replay__player-status--alive"
-                        : "vw-replay__player-status--dead")
-                    }
-                  >
-                    {p.alive ? "alive" : "dead"}
-                  </span>
-                </div>
-                {finalPos >= 0 && (
-                  <p className="vw-replay__player-finish">
-                    final: #{finalPos + 1}
-                  </p>
-                )}
-              </div>
-            );
-          })}
-        </aside>
-      </div>
+      <ReplayFrame
+        ratio={ratio}
+        nativeRatio={CURVE_NATIVE_RATIO}
+        brand={brand}
+        legend={legend}
+      >
+        <CurveBoard
+          state={current.state}
+          trails={trails}
+          trailLens={current.trailLens}
+          names={names}
+          mySeat={mySeat}
+          showHeadLabels={onHead}
+        />
+      </ReplayFrame>
+      <PlaybackControls
+        totalFrames={totalFrames}
+        currentTick={current.state.tick}
+        maxTick={frames[totalFrames - 1].state.tick}
+        playback={playback}
+        extra={<AspectSelect value={ratio} options={ratios} onChange={setRatio} />}
+      />
     </div>
   );
 }
@@ -223,13 +250,22 @@ function CurveBoard({
   state,
   trails,
   trailLens,
+  names,
+  mySeat,
+  showHeadLabels,
 }: {
   state: CurveStateLite;
   trails: Point[][];
   trailLens: number[];
+  // Per-seat display names, drawn riding each living player's curve head.
+  names: string[];
+  mySeat: number | null;
+  // Whether to draw names on the heads (native 1:1 only — off-native ratios show
+  // a roster legend in the letterbox dead space instead).
+  showHeadLabels: boolean;
 }) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const size = 720;
+  const size = 720; // logical drawing space (all px constants below are in it)
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -237,12 +273,17 @@ function CurveBoard({
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    const dpr = window.devicePixelRatio || 1;
-    canvas.width = size * dpr;
-    canvas.height = size * dpr;
-    canvas.style.width = `${size}px`;
-    canvas.style.height = `${size}px`;
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    // The backing buffer is a fixed square (RES×RES); CSS then meet-fits the
+    // canvas into the ReplayFrame as a replaced element, preserving its 1:1
+    // aspect from these intrinsic pixels (see .vw-curve__canvas). RES is large
+    // enough to downscale-fill any frame, so the board stays crisp without
+    // pinning a display size. Logical drawing stays in `size` units via the
+    // RES/size transform, so all the px constants below are unchanged.
+    const RES = 1440;
+    const k = RES / size;
+    canvas.width = RES;
+    canvas.height = RES;
+    ctx.setTransform(k, 0, 0, k, 0, 0);
 
     ctx.fillStyle = "#0a0a0b";
     ctx.fillRect(0, 0, size, size);
@@ -312,11 +353,40 @@ function CurveBoard({
       ctx.fillStyle = head + "33";
       ctx.fill();
     }
-  }, [state, trails, trailLens]);
 
-  return (
-    <div className="vw-replay__board">
-      <canvas ref={canvasRef} />
-    </div>
-  );
+    // Name labels ride each living player's head, pulsing VERY subtly so they
+    // read without competing with the curves. A dead player has no head here,
+    // so its label is simply absent — which is how alive/dead now reads. Only
+    // in native 1:1; off-native ratios show the roster legend in the bands.
+    if (showHeadLabels) {
+      const pulse = 0.34 + 0.12 * Math.sin(state.tick * 0.18); // ≈ 0.22–0.46
+      ctx.save();
+      ctx.textAlign = "center";
+      ctx.textBaseline = "bottom";
+      ctx.font = "600 11px ui-monospace, Menlo, Consolas, monospace";
+      ctx.lineJoin = "round";
+      const pad = 4;
+      for (const p of state.players) {
+        if (!p.alive) continue;
+        const name = names[p.seat];
+        if (!name) continue;
+        // Clamp the (centered) label inside the canvas so heads at the walls
+        // don't get their name clipped by the edge.
+        const halfW = ctx.measureText(name).width / 2;
+        const x = clamp(p.x * scale, halfW + pad, size - halfW - pad);
+        const y = clamp(p.y * scale - 13, 14, size - pad); // just above the head
+        const isMe = mySeat !== null && p.seat === mySeat;
+        ctx.globalAlpha = isMe ? Math.min(1, pulse + 0.18) : pulse;
+        // Faint dark outline for legibility over bright trails.
+        ctx.strokeStyle = "#0a0a0b";
+        ctx.lineWidth = 3;
+        ctx.strokeText(name, x, y);
+        ctx.fillStyle = p.color;
+        ctx.fillText(name, x, y);
+      }
+      ctx.restore();
+    }
+  }, [state, trails, trailLens, names, mySeat, showHeadLabels]);
+
+  return <canvas className="vw-curve__canvas" ref={canvasRef} />;
 }
