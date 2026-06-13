@@ -170,6 +170,7 @@ export function PokerReplay({
           revealAll={revealAll}
           rotate90={ratio === "9:16"}
           emphasizeMe={false}
+          turnTimer={null}
         />
       </ReplayFrame>
       <PlaybackControls
