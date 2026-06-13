@@ -65,6 +65,9 @@ export function detectGameId(replay: RawReplay): string | null {
   // positive against any future game that tracks a shared chip pool.
   if ("community_cards" in s) return "poker";
   if ("board" in s && "bombs" in s) return "blast";
+  if ("board" in s && "current_turn" in s && "fight_location" in s) {
+    return "rock-paper-scissors";
+  }
   if ("trails" in s || "trail_delta" in s) return "curve";
   if ("bases" in s && "units" in s && "lane" in s) return "vibelords";
   return null;

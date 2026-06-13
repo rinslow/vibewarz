@@ -11,6 +11,8 @@ from vibewarz import (
     CurveBot,
     CurveState,
     PokerState,
+    RockPaperScissorsMoveAction,
+    RockPaperScissorsState,
     VibelordsState,
 )
 from vibewarz.games import BlastState
@@ -18,6 +20,7 @@ from vibewarz.play_local import play
 from vibewarz_games.blast.game import Blast
 from vibewarz_games.curve.game import Curve
 from vibewarz_games.poker.game import Poker
+from vibewarz_games.rock_paper_scissors.game import RockPaperScissors
 from vibewarz_games.vibelords.game import Vibelords
 
 
@@ -64,6 +67,7 @@ def test_all_state_models_validate_real_bot_views() -> None:
         (Curve(), CurveState, 4),
         (Blast(), BlastState, 2),
         (Poker(), PokerState, 2),
+        (RockPaperScissors(), RockPaperScissorsState, 2),
         (Vibelords(), VibelordsState, 2),
     ]
     for engine, model, num_players in cases:
@@ -165,3 +169,27 @@ def test_vibelords_typed_views_preserve_queue_redaction() -> None:
 
     assert len(seat0_view.player(0).queue) == 1
     assert seat1_view.player(0).queue == []
+
+
+def test_rock_paper_scissors_move_action_serializes_from_alias() -> None:
+    action = RockPaperScissorsMoveAction(from_square=16, to=24)
+    assert action.model_dump(mode="json") == {
+        "type": "move",
+        "from": 16,
+        "to": 24,
+        "move_type": None,
+    }
+
+
+def test_rock_paper_scissors_typed_view_hides_enemy_pieces() -> None:
+    engine = RockPaperScissors()
+    state = engine.initial_state(seed=1, num_players=2)
+    state = engine.step(
+        state,
+        {0: engine.default_action(state, 0), 1: engine.default_action(state, 1)},
+    ).state
+
+    seat0_view = RockPaperScissorsState.model_validate(engine.view_for(state, 0))
+
+    assert seat0_view.piece_at(0).type == "flag"
+    assert seat0_view.piece_at(63).type == "hidden"

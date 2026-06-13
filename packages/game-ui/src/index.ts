@@ -35,6 +35,19 @@ export {
   type PokerAction,
   type LegalKinds,
 } from "./poker/types";
+export {
+  RockPaperScissorsReplay,
+  buildRockPaperScissorsFrames,
+} from "./rock-paper-scissors";
+export { RpsBoard } from "./rock-paper-scissors/board";
+export type {
+  RpsAction,
+  RpsPhase,
+  RpsPiece,
+  RpsPieceType,
+  RpsPlayer,
+  RpsState,
+} from "./rock-paper-scissors/types";
 export { PlaybackControls, usePlayback } from "./controls";
 export type { PlaybackState } from "./controls";
 export { ReplayFrame, AspectSelect, ASPECT_RATIOS, type AspectRatio } from "./frame";

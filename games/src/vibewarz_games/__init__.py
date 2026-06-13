@@ -7,6 +7,7 @@ from ._core import GAMES, Game, GameMeta, StepResult, register
 from .blast import game as _blast_module  # noqa: F401  side-effect: registers Blast
 from .curve import game as _curve_module  # noqa: F401  side-effect: registers Curve
 from .poker import game as _poker_module  # noqa: F401  side-effect: registers Poker
+from .rock_paper_scissors import game as _rock_paper_scissors_module  # noqa: F401  side-effect: registers Rock Paper Scissors
 from .vibelords import game as _vibelords_module  # noqa: F401  side-effect: registers Vibelords
 
 __all__ = ["GAMES", "Game", "GameMeta", "StepResult", "register"]
